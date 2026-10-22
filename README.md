@@ -29,8 +29,27 @@ TEST_DATABASE_URL=postgres://... npm test   # same service tests on real Postgre
 | `AUTH_MODE` | `roster` (email + printed code) now; `entra` (Microsoft SSO) planned. Not yet read by the code. |
 
 ## Deploy
-- **Vercel**: set the variables above, add a Postgres (Neon). `vercel.json` runs the awards job daily; it only creates *drafts*.
-- **School server**: `docker compose up --build` (uses `.env`; point `DATABASE_URL` at the `db` service).
+
+### Vercel (preview or production)
+The app needs a real Postgres on Vercel: without `DATABASE_URL` it falls back to an in-memory database, which serverless instances don't share.
+
+1. Vercel: **Add New → Project**, import this GitHub repo. Branch pushes get preview deployments automatically.
+2. **Storage → Create → Neon Postgres** (Marketplace). It sets `DATABASE_URL`; use the pooled connection string. Put the function and DB regions near the school.
+3. **Environment variables**: `CHECKIN_SECRET` (long random string), `CRON_SECRET` (long random string), `ADMIN_EMAILS` (your school email).
+4. Deploy. The build runs `scripts/migrate.mts`, which applies migrations to `DATABASE_URL` (this includes preview builds, so previews and production share one database unless you give previews their own).
+5. Get a login:
+   - **Fake demo data (recommended for a preview):** from your machine run `DATABASE_URL="<neon url>" npm run seed`. It creates a demo teacher and student plus sample events and exhibits, and prints their one-time codes. It does nothing if the demo accounts already exist.
+   - **Real admin:** the first request after deploy creates the `ADMIN_EMAILS` account and prints its one-time code in the function **Logs**.
+6. **Settings → Deployment Protection**: preview URLs require a Vercel login by default. Allow public access for the demo, or share a protection-bypass link.
+7. Open it on a phone (HTTPS is provided, so the camera works) and try "Add to Home Screen".
+
+Notes:
+- Printed exhibit/NFC codes embed the site's domain. Set up the stable production domain **before** printing anything, and don't print from a preview URL.
+- `vercel.json` runs the awards job daily; it only creates drafts. Vercel sends `CRON_SECRET` automatically.
+- Use fake data only until the school confirms its data policy for hosting student data outside the school.
+
+### School server
+`docker compose up --build` (uses `.env`; point `DATABASE_URL` at the `db` service).
 
 ## Typical flow
 1. Admin signs in, promotes teachers (Teacher portal home), imports the roster CSV and prints login codes.

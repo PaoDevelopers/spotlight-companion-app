@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type { Db } from "./db";
 import { users, events, exhibits, competitions } from "./db/schema";
 import { ensureAwards } from "./services/awards";
@@ -5,8 +6,9 @@ import { generateLoginCode, hashCode } from "./services/auth";
 
 /** Dev/demo data only. Prints codes so you can log in. Never run against real student data. */
 export async function seedDemo(db: Db) {
-  const [{ n }] = await db.select({ n: users.id }).from(users).limit(1).then((r) => (r.length ? [{ n: 1 }] : [{ n: 0 }]));
-  if (n) return null;
+  // Skip if the demo accounts already exist (other users, e.g. a bootstrapped admin, don't block seeding).
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, "teacher@demo.school"));
+  if (existing) return null;
   await ensureAwards(db);
   const codes: Record<string, string> = {};
   for (const [name, email, role] of [["Ms Teacher", "teacher@demo.school", "teacher"], ["Demo Student", "student@demo.school", "student"]] as const) {

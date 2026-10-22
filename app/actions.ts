@@ -9,8 +9,9 @@ import { COOKIE, requireUser, secret } from "@/lib/session";
 import { createSession, loginWithCode } from "@/lib/services/auth";
 import { castVote } from "@/lib/services/awards";
 import { register } from "@/lib/services/competitions";
-import { checkInStudent, visitExhibit } from "@/lib/services/checkin";
 import { seedDemo } from "@/lib/seed";
+import { processScan } from "@/lib/scan";
+import { clearFailures, recordFailure, tooManyFailures } from "@/lib/rateLimit";
 
 // Only same-site relative paths, to avoid open redirects after login.
 const safeNext = (n: FormDataEntryValue | null) => (typeof n === "string" && n.startsWith("/") && !n.startsWith("//") ? n : "/");
@@ -18,8 +19,11 @@ const safeNext = (n: FormDataEntryValue | null) => (typeof n === "string" && n.s
 export async function login(_: unknown, form: FormData) {
   const db = await getDb();
   if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) await seedDemo(db);
-  const u = await loginWithCode(db, String(form.get("email") ?? ""), String(form.get("code") ?? ""));
-  if (!u) return { error: "Email or code not recognised." };
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  if (tooManyFailures(email)) return { error: "Too many attempts. Try again in 10 minutes or ask your teacher." };
+  const u = await loginWithCode(db, email, String(form.get("code") ?? ""));
+  if (!u) { recordFailure(email); return { error: "Email or code not recognised." }; }
+  clearFailures(email);
   (await cookies()).set(COOKIE, createSession(secret(), u.id), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 45 * 86400 });
   redirect(safeNext(form.get("next")));
 }
@@ -29,20 +33,11 @@ export async function logout() {
   redirect("/login");
 }
 
-/** Used by the in-app scanner: accepts a raw token or a full /c/<token> URL. */
+/** Used by the in-app scanner. The /c/[token] page calls processScan directly (can't revalidate during render). */
 export async function submitScan(raw: string) {
-  const user = await requireUser();
-  const token = raw.trim().split("/c/").pop()!.split(/[?#]/)[0];
-  const db = await getDb();
-  if (token.startsWith("exhibit.")) {
-    const r = await visitExhibit(db, secret(), user.id, token);
-    return r.ok ? { ok: true as const, message: "Exhibit visit recorded", href: `/exhibits/${r.slug}` } : { ok: false as const, message: "That exhibit code isn't valid." };
-  }
-  const r = await checkInStudent(db, secret(), user.id, token);
+  const r = await processScan(raw);
   revalidatePath("/");
-  if (r.ok) return { ok: true as const, message: r.duplicate ? `Already checked in to ${r.title}` : `Checked in to ${r.title}!` };
-  const msg = { invalid_token: "That code is invalid or expired. Scan the live screen again.", not_found: "Event not found.", closed: "Check-in isn't open for this event.", full: "This event is full." }[r.error];
-  return { ok: false as const, message: msg };
+  return r;
 }
 
 export async function toggleLeaderboard(form: FormData) {

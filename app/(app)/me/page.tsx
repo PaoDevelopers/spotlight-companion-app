@@ -5,6 +5,7 @@ import { requireUser, secret } from "@/lib/session";
 import { makePassToken } from "@/lib/checkin/token";
 import { QrImage } from "@/components/QrImage";
 import { logout, toggleLeaderboard } from "@/app/actions";
+import { SignOutButton } from "@/components/SignOutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function Me() {
         {hist.map((h, i) => <div key={i} className="mb-1 rounded bg-white p-2 text-sm shadow-sm">{h.title} <span className="text-slate-500">· {h.method}</span></div>)}
         {hist.length === 0 && <p className="text-slate-500">None yet.</p>}
       </section>
-      <form action={logout}><button className="underline">Sign out</button></form>
+      <form action={logout}><SignOutButton /></form>
     </div>
   );
 }

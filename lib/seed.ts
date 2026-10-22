@@ -10,7 +10,7 @@ export async function seedDemo(db: Db) {
   await ensureAwards(db);
   const codes: Record<string, string> = {};
   for (const [name, email, role] of [["Ms Teacher", "teacher@demo.school", "teacher"], ["Demo Student", "student@demo.school", "student"]] as const) {
-    const code = generateLoginCode();
+    const code = process.env.DEMO_LOGIN_CODE ?? generateLoginCode(); // fixed code only for e2e/dev
     codes[email] = code;
     await db.insert(users).values({ name, email, role, className: role === "student" ? "10A" : null, loginCodeHash: hashCode(code) });
   }

@@ -45,7 +45,7 @@ export async function importRoster(db: Db, rows: ReturnType<typeof parseRosterCs
     await db
       .insert(users)
       .values({ ...r, role: "student", loginCodeHash: hashCode(code) })
-      .onConflictDoUpdate({ target: users.email, set: { name: r.name, className: r.className, loginCodeHash: hashCode(code) } });
+      .onConflictDoUpdate({ target: users.email, set: { name: r.name, className: r.className, loginCodeHash: hashCode(code) }, setWhere: eq(users.role, "student") }); // never touch staff accounts
     issued.push({ ...r, code });
   }
   return issued;

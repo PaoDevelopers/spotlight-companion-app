@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { submitScan } from "@/app/actions";
+import { processScan } from "@/lib/scan";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function Tap({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   await requireUser(`/c/${token}`);
-  const r = await submitScan(decodeURIComponent(token));
+  const r = await processScan(token);
   if (r.ok && "href" in r && r.href) redirect(r.href);
   return (
     <main className="mx-auto max-w-sm p-6 text-center">

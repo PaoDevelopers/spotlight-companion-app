@@ -15,6 +15,7 @@ Demo login (dev only): `teacher@demo.school` / `student@demo.school`, code print
 ```bash
 npm test             # unit + service tests (in-memory Postgres)
 npm run test:e2e     # Playwright (set CHROMIUM_PATH if needed)
+TEST_DATABASE_URL=postgres://... npm test   # same service tests on real Postgres (wipes that DB)
 ```
 
 ## Configuration (`.env.example`)

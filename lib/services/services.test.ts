@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createMemoryDb, type Db } from "../db";
+import type { Db } from "../db";
+import { createTestDb } from "../db/testdb";
 import { checkins, competitions, events, exhibitOwners, exhibits, users } from "../db/schema";
 import { importRoster, loginWithCode, parseRosterCsv, createSession, readSession } from "./auth";
 import { checkInByPass, checkInStudent, visitExhibit } from "./checkin";
@@ -21,7 +22,7 @@ async function mkEvent(title = "Robotics Demo") {
   return e;
 }
 
-beforeEach(async () => { db = await createMemoryDb(); });
+beforeEach(async () => { db = await createTestDb(); });
 
 describe("auth", () => {
   it("imports a roster and logs in with the printed code", async () => {

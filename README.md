@@ -14,7 +14,8 @@ Demo login (dev only): `teacher@demo.school` / `student@demo.school`, code print
 
 ```bash
 npm test             # unit + service tests (in-memory Postgres)
-npm run test:e2e     # Playwright (set CHROMIUM_PATH if needed)
+npm run test:e2e     # Playwright: student/teacher flows, fake-camera QR scanning (needs ffmpeg; set CHROMIUM_PATH if needed)
+npm run build && PROD_DATABASE_URL=postgres://... npm run test:e2e:prod   # PWA/offline checks on the production build
 TEST_DATABASE_URL=postgres://... npm test   # same service tests on real Postgres (wipes that DB)
 ```
 

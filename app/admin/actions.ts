@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { competitions, events, exhibitOwners, exhibits, users, auditLog } from "@/lib/db/schema";
@@ -31,6 +32,7 @@ export async function deleteEvent(form: FormData) {
   await requireStaff();
   await (await getDb()).delete(events).where(eq(events.id, Number(str(form, "id"))));
   revalidatePath("/admin/events");
+  redirect("/admin/events");
 }
 
 export async function manualAdd(form: FormData) {

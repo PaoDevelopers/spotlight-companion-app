@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { competitionEntries, competitions, events, users } from "@/lib/db/schema";
+import { SubmitButton } from "@/components/SubmitButton";
 import { saveCompetition, saveEntry } from "../actions";
 
 const STATUSES = ["registered", "competing", "advanced", "eliminated", "finished"];
@@ -33,7 +34,7 @@ export default async function AdminCompetitions() {
               <input name="score" type="number" defaultValue={e.score ?? ""} placeholder="score" className={`${i} w-20`} />
               <input name="rank" type="number" min="1" defaultValue={e.rank ?? ""} placeholder="rank" className={`${i} w-16`} />
               <input name="notes" defaultValue={e.notes ?? ""} placeholder="notes" className={`${i} flex-1`} />
-              <button className="rounded border px-2 py-1">Save</button>
+              <SubmitButton className="rounded border px-2 py-1">Save</SubmitButton>
             </form>
           ))}
         </section>

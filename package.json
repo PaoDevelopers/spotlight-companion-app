@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "test:e2e": "playwright test --timeout 180000"
+    "test:e2e": "playwright test --timeout 180000",
+    "test:e2e:prod": "playwright test -c playwright.prod.config.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.11",

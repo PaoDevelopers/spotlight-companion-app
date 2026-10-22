@@ -1,13 +1,7 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { login } from "./helpers";
 
-async function login(page: Page, email: string) {
-  if (!page.url().includes("/login")) await page.goto("/login");
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="code"]', "DEMOCODE");
-  await page.click('button:has-text("Sign in")');
-  // First login in dev compiles pages, migrates and seeds the in-memory DB, so allow time.
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 90_000 });
-}
+// Runs first on purpose: specs share one in-memory DB and this one expects a first-time check-in.
 
 test("teacher shows QR, student checks in, awards publish", async ({ page, browser }) => {
   // Unauthenticated visitors are bounced to login and returned afterwards.

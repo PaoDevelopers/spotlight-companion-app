@@ -9,4 +9,5 @@ export default function proxy(req: NextRequest) {
   return NextResponse.redirect(url);
 }
 
-export const config = { matcher: ["/((?!login|c/|api/|_next/|manifest.webmanifest|favicon.ico).*)"] };
+// Skip static files (anything with an extension: icons, sw.js, manifest) so logged-out browsers can install the PWA.
+export const config = { matcher: ["/((?!login|c/|api/|_next/|.*\\..*).*)"] };

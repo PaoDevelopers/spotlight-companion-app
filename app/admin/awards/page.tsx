@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { exhibits } from "@/lib/db/schema";
 import { awardResultsFor, previewAwards } from "@/lib/services/awards";
+import { SubmitButton } from "@/components/SubmitButton";
 import { judgeScoreAction, publishAction, runAwardsAction, vetoAction } from "../actions";
 
 export default async function AdminAwards() {
@@ -18,28 +19,29 @@ export default async function AdminAwards() {
         {ex.map((x) => (
           <form key={x.id} action={judgeScoreAction} className="mb-1 flex items-center gap-2">
             <input type="hidden" name="exhibitId" value={x.id} /><span className="w-56">{x.title}</span>
-            <input name="score" type="number" min="0" max="100" required className="w-20 rounded border p-1" /><button className="rounded border px-2 py-1 text-sm">Score</button>
+            <input name="score" type="number" min="0" max="100" required className="w-20 rounded border p-1" /><SubmitButton className="rounded border px-2 py-1 text-sm">Score</SubmitButton>
           </form>
         ))}
       </section>
-      <form action={runAwardsAction}><button className="rounded bg-slate-900 px-4 py-2 font-semibold text-white">Compute drafts</button> <span className="text-sm text-slate-600">Current standings would yield {liveCount} winners.</span></form>
+      <form action={runAwardsAction}><SubmitButton pendingText="Computing…" className="rounded bg-slate-900 px-4 py-2 font-semibold text-white">Compute drafts</SubmitButton> <span className="text-sm text-slate-600">Current standings would yield {liveCount} winners.</span></form>
       <section>
         <h2 className="mb-2 font-semibold">Drafts</h2>
         {group(drafts).map(([award, rows]) => (
           <div key={award} className="mb-3 rounded-lg bg-white p-3 shadow-sm"><b>{award}</b>
             {rows!.map((r) => (
               <form key={r.id} action={vetoAction} className="flex items-center gap-2 border-t py-1 text-sm">
-                <input type="hidden" name="id" value={r.id} /><span className="flex-1">#{r.rank} {r.name} <i className="text-slate-500">{r.className} · {JSON.stringify(r.metrics)}</i></span>
-                <input name="reason" placeholder="Veto reason" className="rounded border p-1" /><button className="text-red-700 underline">Remove</button>
+                <input type="hidden" name="id" value={r.id} /><span className="flex-1">#{r.rank} {r.name} <i className="text-slate-500">{r.className} · {Object.entries(r.metrics as Record<string, number>).map(([k, v]) => `${k} ${v}`).join(" · ")}</i></span>
+                <input name="reason" placeholder="Veto reason" className="rounded border p-1" /><SubmitButton pendingText="Removing…" className="text-red-700 underline">Remove</SubmitButton>
               </form>
             ))}
           </div>
         ))}
         {drafts.length === 0 && <p className="text-slate-500">No drafts.</p>}
-        {drafts.length > 0 && <form action={publishAction}><button className="rounded bg-emerald-700 px-4 py-2 font-semibold text-white">Publish to students</button></form>}
+        {drafts.length > 0 && <form action={publishAction}><SubmitButton pendingText="Publishing…" className="rounded bg-emerald-700 px-4 py-2 font-semibold text-white">Publish to students</SubmitButton></form>}
       </section>
       <section>
         <h2 className="mb-2 font-semibold">Published</h2>
+        {published.length === 0 && <p className="text-slate-500">Nothing published yet.</p>}
         {group(published).map(([award, rows]) => <div key={award} className="mb-2"><b>{award}</b>: {rows!.map((r) => `#${r.rank} ${r.name}`).join(", ")}</div>)}
       </section>
     </div>

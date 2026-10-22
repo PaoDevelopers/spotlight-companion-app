@@ -51,3 +51,18 @@ export function verifyTagToken(secret: string, token: string): { kind: "event" |
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
   return { kind, id };
 }
+
+/** Personal pass QR shown by a student for a teacher to scan. Static per user. */
+export function makePassToken(secret: string, userId: number) {
+  return `pass.${userId}.${createHmac("sha256", secret).update(`pass.${userId}`).digest("base64url")}`;
+}
+
+export function verifyPassToken(secret: string, token: string): number | null {
+  const [kind, idStr] = token.split(".");
+  const id = Number(idStr);
+  if (kind !== "pass" || !Number.isInteger(id)) return null;
+  const expected = Buffer.from(makePassToken(secret, id));
+  const given = Buffer.from(token);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+  return id;
+}

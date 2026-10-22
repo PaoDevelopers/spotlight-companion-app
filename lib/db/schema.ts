@@ -128,3 +128,13 @@ export const auditLog = pgTable("audit_log", {
   detail: jsonb("detail").notNull().default({}),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Students credited for an exhibit/project (receive the "Most Creative" prize).
+export const exhibitOwners = pgTable(
+  "exhibit_owners",
+  {
+    exhibitId: integer("exhibit_id").notNull().references(() => exhibits.id, { onDelete: "cascade" }),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [unique().on(t.exhibitId, t.userId)],
+);

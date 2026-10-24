@@ -3,9 +3,18 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb } from "./db";
 import { users } from "./db/schema";
-import { readSession, type Role } from "./services/auth";
+import { createSession, readSession, type Role } from "./services/auth";
 
 export const COOKIE = "session";
+
+/** Name, value and options of the signed session cookie for a user. */
+export function sessionCookie(userId: number) {
+  return {
+    name: COOKIE,
+    value: createSession(secret(), userId),
+    options: { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge: 45 * 86400 },
+  };
+}
 
 export function secret() {
   const s = process.env.CHECKIN_SECRET;

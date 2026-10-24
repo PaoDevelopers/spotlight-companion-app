@@ -10,4 +10,4 @@ export default function proxy(req: NextRequest) {
 }
 
 // Skip static files (anything with an extension: icons, sw.js, manifest) so logged-out browsers can install the PWA.
-export const config = { matcher: ["/((?!login|c/|api/|_next/|.*\\..*).*)"] };
+export const config = { matcher: ["/((?!login|auth|c/|api/|_next/|.*\\..*).*)"] };

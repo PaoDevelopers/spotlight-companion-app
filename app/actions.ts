@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { COOKIE, requireUser, secret } from "@/lib/session";
-import { createSession, loginWithCode } from "@/lib/services/auth";
+import { COOKIE, requireUser, sessionCookie } from "@/lib/session";
+import { loginWithCode } from "@/lib/services/auth";
+import { authMode } from "@/lib/auth/config";
 import { castVote } from "@/lib/services/awards";
 import { register } from "@/lib/services/competitions";
 import { seedDemo } from "@/lib/seed";
@@ -17,6 +18,8 @@ import { clearFailures, recordFailure, tooManyFailures } from "@/lib/rateLimit";
 const safeNext = (n: FormDataEntryValue | null) => (typeof n === "string" && n.startsWith("/") && !n.startsWith("//") ? n : "/");
 
 export async function login(_: unknown, form: FormData) {
+  // With Microsoft sign-in on, codes are not accepted at all (not just hidden on the page).
+  if (authMode() === "entra") return { error: "Please sign in with Microsoft." };
   const db = await getDb();
   if (process.env.NODE_ENV !== "production" && !process.env.DATABASE_URL) await seedDemo(db);
   const email = String(form.get("email") ?? "").trim().toLowerCase();
@@ -24,7 +27,8 @@ export async function login(_: unknown, form: FormData) {
   const u = await loginWithCode(db, email, String(form.get("code") ?? ""));
   if (!u) { recordFailure(email); return { error: "Email or code not recognised." }; }
   clearFailures(email);
-  (await cookies()).set(COOKIE, createSession(secret(), u.id), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 45 * 86400 });
+  const c = sessionCookie(u.id);
+  (await cookies()).set(c.name, c.value, c.options);
   redirect(safeNext(form.get("next")));
 }
 

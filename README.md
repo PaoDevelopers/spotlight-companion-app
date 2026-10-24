@@ -26,7 +26,11 @@ TEST_DATABASE_URL=postgres://... npm test   # same service tests on real Postgre
 | `CHECKIN_SECRET` | Signs sessions, check-in QR/NFC tokens. **Required in production**; changing it invalidates printed tags. |
 | `ADMIN_EMAILS` | First admin(s); a one-time login code is printed to the server log on first start. |
 | `CRON_SECRET` | Bearer token for `/api/cron/awards` (Vercel Cron sends it automatically). |
-| `AUTH_MODE` | `roster` (email + printed code) now; `entra` (Microsoft SSO) planned. Not yet read by the code. |
+| `AUTH_MODE` | `roster` (default): email + printed code. `entra`: Microsoft sign-in only; codes are refused. |
+| `OIDC_TENANT_ID`, `OIDC_CLIENT_ID` | Needed when `AUTH_MODE=entra`. Not secrets, and there is no client secret. |
+| `APP_URL` | The site's public address (e.g. `https://spotlight.school.example`). Must match the redirect address registered with Microsoft. |
+| `STAFF_DOMAIN`, `STUDENT_DOMAIN` | Default `ykpaoschool.cn` and `stu.ykpaoschool.cn`. |
+| `ADMIN_EMAILS` | In `entra` mode these full addresses become admins when they sign in. |
 
 ## Deploy
 
@@ -51,6 +55,20 @@ Notes:
 ### School server
 `docker compose up --build` (uses `.env`; point `DATABASE_URL` at the `db` service).
 
+## Microsoft sign-in (`AUTH_MODE=entra`)
+Works like the school's CCA app: the browser goes to Microsoft, which posts a signed ID token back to `/auth`.
+We check the signature against the tenant's published keys, the issuer, that the token was issued to **our** client ID,
+its expiry and a one-time nonce, so no client secret is needed. `@stu.ykpaoschool.cn` accounts become students and
+`@ykpaoschool.cn` accounts become teachers on first sign-in; other domains are refused. Existing accounts keep their
+role, and are matched by email.
+
+Ask IT for an app registration (or an extra redirect address on an existing one) with:
+- Redirect URI (Web): `https://<our-host>/auth` (exact; Microsoft doesn't allow wildcards, so use the stable domain)
+- Authentication: enable **ID tokens** (implicit/hybrid flow), single tenant
+- Permissions: sign-in only (`openid profile email`)
+Then set `OIDC_TENANT_ID`, `OIDC_CLIENT_ID`, `APP_URL`, `AUTH_MODE=entra`. Test without Microsoft: `npm run test:e2e:sso`
+(uses a fake provider; it can't prove the school's real registration, only our side of the flow).
+
 ## Typical flow
 1. Admin signs in, promotes teachers (Teacher portal home), imports the roster CSV and prints login codes.
 2. Teachers create events/exhibits/competitions. Print exhibit QR codes or write the shown URLs to NFC tags.
@@ -58,5 +76,5 @@ Notes:
 4. Last week: students vote, judges score. After the freeze: *Awards → Compute drafts → review/veto → Publish*.
 
 ## Not done yet
-Microsoft Entra SSO (needs tenant/client IDs), exhibit quizzes, certificate PDFs, realtime leaderboard.
+Real Microsoft sign-in has only been tested against a fake provider (needs the school's tenant/client IDs); exhibit quizzes, certificate PDFs, realtime leaderboard.
 See the plan for the rationale behind each choice.

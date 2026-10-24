@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Db } from ".";
 import { users } from "./schema";
+import { authMode } from "../auth/config";
 import { generateLoginCode, hashCode } from "../services/auth";
 
 /**
@@ -8,6 +9,8 @@ import { generateLoginCode, hashCode } from "../services/auth";
  * server log once, only for accounts that don't exist yet. Afterwards admins promote teachers in /admin.
  */
 export async function bootstrapAdmins(db: Db) {
+  // With Microsoft sign-in, ADMIN_EMAILS grants admin at sign-in; there are no codes to hand out.
+  if (authMode() === "entra") return;
   for (const email of (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) {
     const [u] = await db.select().from(users).where(eq(users.email, email));
     if (u) continue;

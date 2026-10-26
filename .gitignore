@@ -6,3 +6,9 @@ node_modules
 next-env.d.ts
 test-results
 playwright-report
+server/spotlight
+server/*.db
+server/*.db-wal
+server/*.db-shm
+web/node_modules
+web/dist

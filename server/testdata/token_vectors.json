@@ -1,0 +1,118 @@
+{
+ "secret": "vector-secret",
+ "windowSeconds": 30,
+ "eventTokens": [
+  {
+   "eventId": 7,
+   "nowMs": 1700000000000,
+   "token": "7.56666666.oRiRq_PHp2tA1LQZC4j2MK4SlL5da-Imt-YTU4b7ZEg"
+  },
+  {
+   "eventId": 1,
+   "nowMs": 1700000012345,
+   "token": "1.56666667.T-7SM_TBgBOqS10sdXcjGGo9DAw68CSIPI1beEWSVKM"
+  },
+  {
+   "eventId": 99999,
+   "nowMs": 1700086400000,
+   "token": "99999.56669546.EHkb-yL-EbT-w5nPP-R9V9xPu0earoeTe-iwcfEMjqE"
+  }
+ ],
+ "verifyEvent": [
+  {
+   "token": "7.56666666.oRiRq_PHp2tA1LQZC4j2MK4SlL5da-Imt-YTU4b7ZEg",
+   "nowMs": 1700000000000,
+   "want": 7
+  },
+  {
+   "token": "7.56666666.oRiRq_PHp2tA1LQZC4j2MK4SlL5da-Imt-YTU4b7ZEg",
+   "nowMs": 1700000030000,
+   "want": 7
+  },
+  {
+   "token": "7.56666666.oRiRq_PHp2tA1LQZC4j2MK4SlL5da-Imt-YTU4b7ZEg",
+   "nowMs": 1700000090000,
+   "want": null
+  },
+  {
+   "token": "7.56666666.oRiRq_PHp2tA1LQZC4j2MK4SlL5da-Imt-YTU4b7ZEg",
+   "nowMs": 1699999850000,
+   "want": null
+  },
+  {
+   "token": "8.56666666.oRiRq_PHp2tA1LQZC4j2MK4SlL5da-Imt-YTU4b7ZEg",
+   "nowMs": 1700000000000,
+   "want": null
+  },
+  {
+   "token": "garbage",
+   "nowMs": 1700000000000,
+   "want": null
+  },
+  {
+   "token": "",
+   "nowMs": 1700000000000,
+   "want": null
+  }
+ ],
+ "tagTokens": [
+  {
+   "kind": "exhibit",
+   "id": 3,
+   "token": "exhibit.3.chhF831_qh28aBR89FPh1s64Ii_HA10aEQC6cGhWUh0"
+  },
+  {
+   "kind": "event",
+   "id": 12,
+   "token": "event.12.61eB8hNUDDbzq-876QmLV-ABqs9sq5_AgrldUDgVzgo"
+  }
+ ],
+ "verifyTag": [
+  {
+   "token": "exhibit.3.chhF831_qh28aBR89FPh1s64Ii_HA10aEQC6cGhWUh0",
+   "want": {
+    "kind": "exhibit",
+    "id": 3
+   }
+  },
+  {
+   "token": "event.12.61eB8hNUDDbzq-876QmLV-ABqs9sq5_AgrldUDgVzgo",
+   "want": {
+    "kind": "event",
+    "id": 12
+   }
+  },
+  {
+   "token": "exhibit.4.chhF831_qh28aBR89FPh1s64Ii_HA10aEQC6cGhWUh0",
+   "want": null
+  },
+  {
+   "token": "nope",
+   "want": null
+  }
+ ],
+ "passTokens": [
+  {
+   "userId": 42,
+   "token": "pass.42.SPAABilF9EA0PCLE8NeWauIgyoy7LVWOOY9UDGgLGW4"
+  },
+  {
+   "userId": 1,
+   "token": "pass.1.zPiNXtj0vAY18rt00VRlS6uaeuR-WJWhQHBw7PMLUEo"
+  }
+ ],
+ "verifyPass": [
+  {
+   "token": "pass.42.SPAABilF9EA0PCLE8NeWauIgyoy7LVWOOY9UDGgLGW4",
+   "want": 42
+  },
+  {
+   "token": "pass.43.SPAABilF9EA0PCLE8NeWauIgyoy7LVWOOY9UDGgLGW4",
+   "want": null
+  },
+  {
+   "token": "x",
+   "want": null
+  }
+ ]
+}

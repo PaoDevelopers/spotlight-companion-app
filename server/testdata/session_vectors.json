@@ -1,0 +1,37 @@
+{
+ "secret": "vector-secret",
+ "create": [
+  {
+   "userId": 5,
+   "nowMs": 0,
+   "token": "5.3888000.detGawSiCrtVf4U_APcdbBNx_r7E1U2iQ0XywBjyEH4"
+  },
+  {
+   "userId": 77,
+   "nowMs": 1700000000000,
+   "token": "77.1703888000.5kJtRYB4aMptE8MMuHy1UQKWwkbGjnN-H6JMfHWi95E"
+  }
+ ],
+ "read": [
+  {
+   "token": "5.3888000.detGawSiCrtVf4U_APcdbBNx_r7E1U2iQ0XywBjyEH4",
+   "nowMs": 1000,
+   "want": 5
+  },
+  {
+   "token": "5.3888000.detGawSiCrtVf4U_APcdbBNx_r7E1U2iQ0XywBjyEH4",
+   "nowMs": 1000000000000,
+   "want": null
+  },
+  {
+   "token": "6.3888000.detGawSiCrtVf4U_APcdbBNx_r7E1U2iQ0XywBjyEH4",
+   "nowMs": 1000,
+   "want": null
+  },
+  {
+   "token": "",
+   "nowMs": 1000,
+   "want": null
+  }
+ ]
+}

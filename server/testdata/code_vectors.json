@@ -1,0 +1,6 @@
+{
+ "code": "ABCD2345",
+ "salt": "00112233445566ff",
+ "hash": "00112233445566ff:e0b8f807265ab45a852161d2c1c7913e5026eb92a3c1380b3c9074356f4c7feb",
+ "lowercaseInputAlsoVerifies": true
+}

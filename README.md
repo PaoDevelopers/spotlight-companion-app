@@ -1,5 +1,38 @@
 # Spotlight Month: Physics / CS events tracker
 
+## Which app is which
+
+This repo holds **two implementations of the same app**. The school server will run the Go one.
+
+| | Where | Stack | Status |
+|---|---|---|---|
+| **Spotlight server (target)** | `server/` + `web/` | Go + SQLite, React + Tailwind + shadcn-style UI, one binary | all features; install kit in `deploy/` |
+| Original prototype | repo root (`app/`, `lib/`) | Next.js + Postgres | the Vercel demo; retired at cutover |
+
+Both pass the same browser tests (`e2e/`, `e2e-sso/`). The HTTP contract between the React app and the Go server is
+`docs/API.md`; installing on the school server is `deploy/INSTALL.md`.
+
+### Try the Go version on your computer
+Needs Go 1.24+, Node 22+ and `make`.
+```bash
+make                                   # builds ./spotlight (React app embedded)
+PUBLIC_URL=http://localhost:3000 LISTEN=:3000 DB_PATH=/tmp/spotlight.db \
+CHECKIN_SECRET=$(openssl rand -hex 32) DEMO_SEED=1 DEMO_LOGIN_CODE=DEMOCODE ./spotlight serve
+# open http://localhost:3000   sign in: teacher@demo.school / DEMOCODE   or   student@demo.school / DEMOCODE
+```
+Camera scanning needs `https://` or `localhost`. For UI work with hot reload: run the command above, then `cd web && npm run dev` and open http://localhost:5173.
+
+### Tests
+```bash
+make test                                   # Go (race detector) + React type check
+npm run test:e2e:go                         # browser tests against ./spotlight   (needs: npm ci, chromium, ffmpeg)
+npm run test:e2e:go-sso                     # Microsoft sign-in against a fake provider
+```
+(`npm run test:e2e` and `test:e2e:sso` run the same tests against the Next.js prototype.)
+
+---
+## Original Next.js prototype
+
 Installable web app (PWA, so no app-store approval) for the school's Physics / CS month: events and check-in
 (rotating QR, student pass QR, NFC tags), competitions and leaderboards, exhibit companion pages, and
 awards computed at month end, published only after a teacher confirms.

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+      - name: Go vet and tests (race detector on)
+        working-directory: server
+        run: |
+          go vet ./...
+          go test -race ./...
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Type check and build the React app
+        working-directory: web
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+  binary:
+    needs: [go, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the single binary (linux/amd64)
+        run: |
+          make
+          mkdir dist
+          tar -C . -czf dist/spotlight-linux-amd64.tar.gz spotlight deploy
+          (cd dist && sha256sum spotlight-linux-amd64.tar.gz > spotlight-linux-amd64.tar.gz.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spotlight-linux-amd64
+          path: dist/*

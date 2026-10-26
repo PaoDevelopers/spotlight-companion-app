@@ -1,0 +1,7 @@
+# If IT prefers a reverse proxy to terminate HTTPS (and CCA doesn't already own port 443), this is all it takes with Caddy.
+# With your own certificate files instead of automatic ones, replace the line after the site name with:
+#   tls /etc/ssl/ykpaoschool/fullchain.pem /etc/ssl/ykpaoschool/privkey.pem
+spotlight.ykpaoschool.cn {
+	encode gzip
+	reverse_proxy 127.0.0.1:8080
+}

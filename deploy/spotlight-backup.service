@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up the Spotlight Month database
+
+[Service]
+Type=oneshot
+User=spotlight
+Group=spotlight
+ExecStart=/opt/spotlight/backup.sh
+ReadWritePaths=/var/backups/spotlight /var/lib/spotlight
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true

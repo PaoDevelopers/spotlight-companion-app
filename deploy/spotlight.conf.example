@@ -1,0 +1,40 @@
+# Settings for the Spotlight Month server. Copy to /etc/spotlight/spotlight.conf and edit.
+# The server refuses to start while any required value is missing or still a placeholder.
+# Real environment variables override this file. Lines starting with # are comments.
+
+# The exact public address, no trailing slash and no path. This is also the address Microsoft redirects back to,
+# so it must match the redirect URI registered with IT (https://spotlight.ykpaoschool.cn/auth).
+PUBLIC_URL=https://spotlight.ykpaoschool.cn
+
+# Where to listen. Behind a proxy (Caddy/nginx) use 127.0.0.1:8080. Serving HTTPS directly on 443 also needs TLS_CERT/TLS_KEY.
+LISTEN=127.0.0.1:8080
+
+# The SQLite database file. Back this directory up (see backup.sh).
+DB_PATH=/var/lib/spotlight/spotlight.db
+
+# Signs sessions and the QR/NFC codes. Generate once with:  openssl rand -hex 32
+# Changing it later logs everyone out AND makes every printed QR code and NFC tag stop working.
+CHECKIN_SECRET=CHANGE-ME-openssl-rand-hex-32
+
+# roster = email + printed login code (use until Microsoft sign-in is approved)
+# entra  = Microsoft sign-in only (codes are refused)
+AUTH_MODE=roster
+
+# Needed when AUTH_MODE=entra (from the school's app registration; not secrets, and there is no client secret):
+# OIDC_TENANT_ID=ddd3d26c-b197-4d00-a32d-1ffd84c0c295
+# OIDC_CLIENT_ID=CHANGE-ME-application-client-id
+
+# Full email addresses that are administrators (can promote teachers). In roster mode a one-time login code for each
+# is printed in the service log on first start (journalctl -u spotlight).
+ADMIN_EMAILS=CHANGE-ME-your-school-email
+
+# School email domains (defaults shown).
+# STAFF_DOMAIN=ykpaoschool.cn
+# STUDENT_DOMAIN=stu.ykpaoschool.cn
+
+# Serve HTTPS directly (certificate chain and key, readable by the spotlight user). Leave unset behind a proxy.
+# TLS_CERT=/etc/spotlight/tls/fullchain.pem
+# TLS_KEY=/etc/spotlight/tls/privkey.pem
+
+# Optional: lets an external scheduler call POST /api/cron/awards (the server already refreshes award drafts nightly).
+# CRON_SECRET=CHANGE-ME-openssl-rand-hex-32

@@ -16,3 +16,4 @@ server/internal/ui/dist
 /spotlight
 test-results
 playwright-report
+.vercel

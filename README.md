@@ -1,5 +1,5 @@
 # Spotlight Month: Physics / CS events tracker
-
+Currently built by Claude Code.
 ## Which app is which
 
 This repo holds **two implementations of the same app**. The school server will run the Go one.

@@ -52,6 +52,8 @@ sign-in; other domains are refused.
 ```
 `passToken` is the text of the student's personal QR code (render it with a QR library; a teacher scans it).
 
+`GET /api/me/checkins` → `[{event, method, at}]`: the events this student has checked in to, oldest first.
+
 `PATCH /api/me` `{"showOnLeaderboard": true}` → the updated `User`.
 
 `GET /api/home` →

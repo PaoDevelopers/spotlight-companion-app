@@ -67,5 +67,5 @@ test("student pages render and work at phone size", async ({ page }) => {
     await page.waitForLoadState("load");
     await expect(page.getByRole("navigation")).toBeVisible();
   }
-  expect(errors.filter((e) => !/getUserMedia|NotAllowed|NotFound|Permission/i.test(e))).toEqual([]);
+  expect(errors.filter((e) => !/getUserMedia|NotAllowed|NotFound|Permission|^401 \S+\/api\/me$/i.test(e))).toEqual([]);
 });

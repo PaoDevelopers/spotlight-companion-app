@@ -12,7 +12,9 @@
     "test:e2e": "playwright test --timeout 180000",
     "test:e2e:prod": "playwright test -c playwright.prod.config.ts",
     "seed": "tsx scripts/seed.mts",
-    "test:e2e:sso": "playwright test -c playwright.sso.config.ts --timeout 120000"
+    "test:e2e:sso": "playwright test -c playwright.sso.config.ts --timeout 120000",
+    "test:e2e:go": "playwright test -c playwright.go.config.ts --timeout 120000",
+    "test:e2e:go-sso": "playwright test -c playwright.go-sso.config.ts --timeout 120000"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.11",

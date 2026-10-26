@@ -296,6 +296,10 @@ func TestEndToEndCheckInAndAwards(t *testing.T) {
 		t.Errorf("csv: %s %s", res.Header.Get("Content-Type"), body)
 	}
 
+	if hist := decode[[]struct{ Event, Method string }](t, student.mustStatus(200, "GET", "/api/me/checkins", nil)); len(hist) != 2 || hist[0].Event != "Opening Assembly: Physics Meets CS" || hist[0].Method != "qr" {
+		t.Fatalf("history %+v", hist)
+	}
+
 	// competition: register, teacher records the result, student sees it, names stay private by default
 	view := decode[struct {
 		CheckedIn    bool

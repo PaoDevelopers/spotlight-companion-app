@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { SHOTS, clickAndSave, hideDevOverlay, login } from "./helpers";
+import { csvPath } from "./env";
 
 test.use({ viewport: { width: 1280, height: 900 } });
 
@@ -36,7 +37,7 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
   await page.fill('input[name="email"]', "student@demo.school");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText("Demo Student")).toBeVisible();
-  const csv = await (await page.request.get(`/api/admin/events/${eventId}/csv`)).text();
+  const csv = await (await page.request.get(csvPath(eventId))).text();
   expect(csv.split("\n")[0]).toBe("name,class,method,time");
   expect(csv).toContain('"Demo Student","10A","manual"');
   await expect(page.getByText("NFC tag / printable QR")).toBeVisible();

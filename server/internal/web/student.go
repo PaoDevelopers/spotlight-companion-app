@@ -259,3 +259,12 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request, u app.User)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"month": month, "competitions": boards})
 }
+
+func (s *Server) myCheckins(w http.ResponseWriter, r *http.Request, u app.User) {
+	list, err := s.app.MyCheckins(r.Context(), u.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, list)
+}

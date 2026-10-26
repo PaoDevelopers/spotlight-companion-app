@@ -6,9 +6,8 @@ import { join } from "node:path";
 import QRCode from "qrcode";
 import { makePassToken, makeTagToken } from "../lib/checkin/token";
 import { hideDevOverlay, login } from "./helpers";
+import { ORIGIN, SECRET, tokenPath } from "./env";
 
-const SECRET = "dev-only-secret"; // dev server default when CHECKIN_SECRET is unset
-const ORIGIN = "http://localhost:3100";
 
 /** Launches Chromium whose "camera" is a looping video of the given QR text. */
 async function browserWithCamera(text: string): Promise<Browser> {
@@ -42,7 +41,7 @@ async function decodeQrOnPage(page: Page): Promise<string> {
 test("student scanner decodes an event QR and an exhibit QR from the camera", async ({ page }) => {
   await hideDevOverlay(page);
   await login(page, "teacher@demo.school");
-  const { token } = await (await page.request.get("/api/admin/token/1")).json();
+  const { token } = await (await page.request.get(tokenPath(1))).json();
 
   // Event QR (what the projector shows)
   let cam = await browserWithCamera(`${ORIGIN}/c/${token}`);
@@ -96,7 +95,7 @@ test("projector page shows a valid QR that rotates", async ({ page }) => {
   await page.goto("/admin/events/1/display");
   await expect(page.getByRole("img", { name: "QR code" })).toBeVisible();
   const first = await decodeQrOnPage(page);
-  expect(first).toMatch(/^http:\/\/localhost:3100\/c\/1\.\d+\.[\w-]+$/);
+  expect(first).toMatch(new RegExp(`^${ORIGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/c/1\\.\\d+\\.[\\w-]+$`));
 
   // Same URL a phone camera would open must actually check a student in
   const student = await (await page.context().browser()!.newContext()).newPage();

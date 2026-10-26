@@ -73,3 +73,29 @@ func (a *App) HasCheckin(ctx context.Context, eventID, userID int64) (bool, erro
 	err := a.DB.Read.QueryRowContext(ctx, `SELECT COUNT(*) FROM checkins WHERE event_id = ? AND user_id = ?`, eventID, userID).Scan(&n)
 	return n > 0, err
 }
+
+type MyCheckin struct {
+	Event  string `json:"event"`
+	Method string `json:"method"`
+	At     string `json:"at"`
+}
+
+// MyCheckins lists the events this student has checked in to, oldest first.
+func (a *App) MyCheckins(ctx context.Context, userID int64) ([]MyCheckin, error) {
+	rows, err := a.DB.Read.QueryContext(ctx, `SELECT e.title, c.method, c.at FROM checkins c JOIN events e ON e.id = c.event_id WHERE c.user_id = ? ORDER BY c.at, c.id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []MyCheckin{}
+	for rows.Next() {
+		var m MyCheckin
+		var at int64
+		if err := rows.Scan(&m.Event, &m.Method, &at); err != nil {
+			return nil, err
+		}
+		m.At = Time(fromUnix(at))
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}

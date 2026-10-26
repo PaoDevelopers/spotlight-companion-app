@@ -52,6 +52,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	// any signed-in user
 	mux.HandleFunc("GET /api/me", s.user(s.me))
 	mux.HandleFunc("PATCH /api/me", s.user(s.updateMe))
+	mux.HandleFunc("GET /api/me/checkins", s.user(s.myCheckins))
 	mux.HandleFunc("GET /api/home", s.user(s.home))
 	mux.HandleFunc("GET /api/events", s.user(s.events))
 	mux.HandleFunc("GET /api/events/{id}", s.user(s.event))

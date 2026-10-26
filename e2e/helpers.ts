@@ -27,7 +27,7 @@ export async function expectNoHorizontalOverflow(page: Page) {
   expect(over, "horizontal overflow in px").toBeLessThanOrEqual(1);
 }
 
-/** Click a button that runs a server action and wait for that POST to finish, so later steps don't race it. */
+/** Click a button that saves something and wait for that request to finish, so later steps don't race it. */
 export async function clickAndSave(page: Page, button: import("@playwright/test").Locator) {
-  await Promise.all([page.waitForResponse((r) => r.request().method() === "POST" && r.ok()), button.click()]);
+  await Promise.all([page.waitForResponse((r) => ["POST", "PUT", "PATCH", "DELETE"].includes(r.request().method()) && r.ok()), button.click()]);
 }

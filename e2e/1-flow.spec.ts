@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./helpers";
+import { ORIGIN, tokenPath } from "./env";
 
 // Runs first on purpose: specs share one in-memory DB and this one expects a first-time check-in.
 
@@ -11,10 +12,10 @@ test("teacher shows QR, student checks in, awards publish", async ({ page, brows
   await expect(page).toHaveURL(/\/events$/);
 
   // Teacher fetches a live rotating token (what the projector QR encodes).
-  const { token } = await (await page.request.get("/api/admin/token/1")).json();
+  const { token } = await (await page.request.get(tokenPath(1))).json();
 
   const student = await (await browser.newContext()).newPage();
-  expect((await student.request.get("/api/admin/token/1")).status()).toBe(403);
+  expect([401, 403]).toContain((await student.request.get(tokenPath(1))).status()); // not signed in
   await login(student, "student@demo.school");
 
   // Student opens the link the QR encodes (same as scanning with the phone camera).
@@ -27,7 +28,7 @@ test("teacher shows QR, student checks in, awards publish", async ({ page, brows
 
   // Students cannot open the teacher portal.
   await student.goto("/admin");
-  await expect(student).toHaveURL("http://localhost:3100/");
+  await expect(student).toHaveURL(`${ORIGIN}/`);
 
   // Teacher sees the attendee, then runs and publishes awards.
   await page.goto("/admin/events/1");

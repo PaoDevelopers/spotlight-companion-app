@@ -12,3 +12,7 @@ server/*.db-wal
 server/*.db-shm
 web/node_modules
 web/dist
+server/internal/ui/dist
+/spotlight
+test-results
+playwright-report

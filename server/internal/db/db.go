@@ -7,6 +7,7 @@ import (
 	"embed"
 	"fmt"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -114,4 +115,14 @@ func (d *DB) migrate(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// Backup writes a consistent snapshot of the live database to dest (which must not exist yet).
+// It is safe while the app is running: SQLite builds the copy inside a read transaction.
+func (d *DB) Backup(ctx context.Context, dest string) error {
+	if _, err := os.Stat(dest); err == nil {
+		return fmt.Errorf("%s already exists", dest)
+	}
+	_, err := d.Read.ExecContext(ctx, `VACUUM INTO ?`, dest)
+	return err
 }

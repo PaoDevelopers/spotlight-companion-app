@@ -106,3 +106,24 @@ func TestConcurrentWritesDoNotFail(t *testing.T) {
 		t.Fatalf("expected 200 check-ins, got %d", n)
 	}
 }
+
+func TestBackupIsAConsistentCopyAndRefusesToOverwrite(t *testing.T) {
+	d := open(t)
+	mustExec(t, d, `INSERT INTO users (email, name) VALUES ('a@x', 'A')`)
+	dest := filepath.Join(t.TempDir(), "backup.db")
+	if err := d.Backup(context.Background(), dest); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Backup(context.Background(), dest); err == nil {
+		t.Fatal("overwriting an existing backup must be refused")
+	}
+	copyDB, err := Open(context.Background(), dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer copyDB.Close()
+	var n int
+	if err := copyDB.Read.QueryRow(`SELECT COUNT(*) FROM users WHERE email = 'a@x'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("backup is missing data: %d %v", n, err)
+	}
+}

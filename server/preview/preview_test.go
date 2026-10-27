@@ -1,4 +1,4 @@
-package handler
+package preview
 
 import (
 	"net/http/httptest"
@@ -17,7 +17,7 @@ func TestHandlerStartsFromEnvironmentAndServesDemo(t *testing.T) {
 
 	get := func(path string) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
-		Handler(rec, httptest.NewRequest("GET", path, nil))
+		Handle(rec, httptest.NewRequest("GET", path, nil))
 		return rec
 	}
 	if rec := get("/healthz"); rec.Code != 200 {
@@ -29,7 +29,7 @@ func TestHandlerStartsFromEnvironmentAndServesDemo(t *testing.T) {
 	login := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(`{"email":"student@demo.school","code":"previewx"}`))
 	req.Header.Set("Content-Type", "application/json")
-	Handler(login, req)
+	Handle(login, req)
 	if login.Code != 200 {
 		t.Fatalf("demo login = %d %s", login.Code, login.Body)
 	}

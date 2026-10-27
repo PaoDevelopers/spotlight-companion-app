@@ -52,7 +52,7 @@ func setup(t *testing.T, mode string) *env {
 	cfg.OIDC = config.OIDC{TenantID: "t", ClientID: "client-1", Authorize: "https://login.example/authorize", Issuer: "https://login.example/v2.0"}
 	e.app = app.New(d, cfg)
 	e.app.Now = func() time.Time { return e.now }
-	shell := fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Spotlight Month</title>")}}
+	shell := fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Spotlight Month</title>")}, "manifest.webmanifest": {Data: []byte(`{"name":"x"}`)}, "sw.js": {Data: []byte("//")}}
 	e.ts.Config.Handler = New(e.app, slog.New(slog.NewTextHandler(io.Discard, nil)), shell)
 	e.base = e.ts.URL
 	return e
@@ -387,7 +387,13 @@ func TestSPAFallbackAndMissingAssets(t *testing.T) {
 			t.Errorf("GET %s = %d", p, res.StatusCode)
 		}
 	}
-	for _, p := range []string{"/assets/missing.js", "/icon-192.png", "/sw.js", "/manifest.webmanifest"} {
+	if res, _ := c.do("GET", "/manifest.webmanifest", nil, nil); !strings.HasPrefix(res.Header.Get("Content-Type"), "application/manifest+json") {
+		t.Errorf("manifest content type = %q", res.Header.Get("Content-Type"))
+	}
+	if res, _ := c.do("GET", "/sw.js", nil, nil); !strings.Contains(res.Header.Get("Content-Type"), "javascript") || res.Header.Get("Cache-Control") != "no-cache" {
+		t.Errorf("sw.js headers: %v", res.Header)
+	}
+	for _, p := range []string{"/assets/missing.js", "/icon-192.png"} {
 		if res, _ := c.do("GET", p, nil, nil); res.StatusCode != 404 {
 			t.Errorf("missing file %s = %d, want 404", p, res.StatusCode)
 		}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
 	"path"
 	"strings"
@@ -13,6 +14,11 @@ import (
 	"github.com/kenny-21342/events-tracker/server/internal/app"
 	"github.com/kenny-21342/events-tracker/server/internal/auth"
 )
+
+func init() {
+	// Go's built-in table doesn't know this one, and browsers want it for "install to home screen".
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
 
 var staticExt = map[string]bool{".js": true, ".mjs": true, ".css": true, ".map": true, ".png": true, ".jpg": true, ".jpeg": true, ".svg": true,
 	".ico": true, ".webp": true, ".woff": true, ".woff2": true, ".json": true, ".webmanifest": true, ".txt": true, ".xml": true}

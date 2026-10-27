@@ -236,6 +236,10 @@ func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 		}
 		name = "index.html"
 	}
+	if _, err := fs.Stat(s.ui, "index.html"); err != nil {
+		http.Error(w, "The web app is not built into this server. Run make.", http.StatusServiceUnavailable)
+		return
+	}
 	h := w.Header()
 	switch {
 	case strings.HasPrefix(name, "assets/"):

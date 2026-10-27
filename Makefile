@@ -16,11 +16,11 @@ web/node_modules: web/package.json web/package-lock.json
 .PHONY: web
 web: web/node_modules
 	cd web && npm run build
-	rm -rf server/internal/ui/dist
-	cp -r web/dist server/internal/ui/dist
+	rm -rf server/internal/ui/dist/*
+	cp -r web/dist/. server/internal/ui/dist/
 
 spotlight: web
-	cd server && $(GO) build -tags embedui -ldflags "-s -w -X main.version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o ../spotlight ./cmd/spotlight
+	cd server && $(GO) build -ldflags "-s -w -X main.version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o ../spotlight ./cmd/spotlight
 
 .PHONY: test
 test: web/node_modules

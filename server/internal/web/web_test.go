@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -24,7 +25,6 @@ import (
 	"github.com/kenny-21342/events-tracker/server/internal/app"
 	"github.com/kenny-21342/events-tracker/server/internal/config"
 	"github.com/kenny-21342/events-tracker/server/internal/db"
-	"github.com/kenny-21342/events-tracker/server/internal/ui"
 )
 
 const secret = "0123456789abcdef0123456789abcdef"
@@ -52,7 +52,8 @@ func setup(t *testing.T, mode string) *env {
 	cfg.OIDC = config.OIDC{TenantID: "t", ClientID: "client-1", Authorize: "https://login.example/authorize", Issuer: "https://login.example/v2.0"}
 	e.app = app.New(d, cfg)
 	e.app.Now = func() time.Time { return e.now }
-	e.ts.Config.Handler = New(e.app, slog.New(slog.NewTextHandler(io.Discard, nil)), ui.FS())
+	shell := fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Spotlight Month</title>")}}
+	e.ts.Config.Handler = New(e.app, slog.New(slog.NewTextHandler(io.Discard, nil)), shell)
 	e.base = e.ts.URL
 	return e
 }

@@ -12,7 +12,8 @@ server/*.db-wal
 server/*.db-shm
 web/node_modules
 web/dist
-server/internal/ui/dist
+server/internal/ui/dist/*
+!server/internal/ui/dist/.gitkeep
 /spotlight
 test-results
 playwright-report

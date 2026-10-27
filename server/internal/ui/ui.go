@@ -1,3 +1,20 @@
-// Package ui provides the built React app. Build with `-tags embedui` after `npm run build` in web/
-// (see the Makefile); without the tag a small placeholder page is served so the API still runs.
+// Package ui embeds the built React app. `make` builds web/ and copies web/dist into internal/ui/dist before compiling.
+// When only the placeholder (.gitkeep) is there, the server still runs and answers with a short "not built" message.
 package ui
+
+import (
+	"embed"
+	"io/fs"
+)
+
+//go:embed all:dist
+var dist embed.FS
+
+// FS is the built web app.
+func FS() fs.FS {
+	sub, err := fs.Sub(dist, "dist")
+	if err != nil {
+		panic(err)
+	}
+	return sub
+}

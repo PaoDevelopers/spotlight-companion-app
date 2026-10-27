@@ -22,6 +22,14 @@ CHECKIN_SECRET=$(openssl rand -hex 32) DEMO_SEED=1 DEMO_LOGIN_CODE=DEMOCODE ./sp
 ```
 Camera scanning needs `https://` or `localhost`. For UI work with hot reload: run the command above, then `cd web && npm run dev` and open http://localhost:5173.
 
+### Public preview (Vercel)
+`server/api/index.go` + `server/preview/` run the Go app as a Vercel function, **for previews only**: the database is a temporary
+SQLite file in `/tmp`, filled with fake demo data when the function starts. Data resets when the function restarts and can
+differ between function instances (for example, a student's check-in may not show on the teacher's screen). The real
+deployment is the long-running program on the school server. To update the preview: `make web`, then `cd server && vercel deploy --prod`
+(project `spotlight-go-preview`). Settings are environment variables on that Vercel project (`CHECKIN_SECRET`, `PUBLIC_URL`,
+`DEMO_SEED`, `DEMO_LOGIN_CODE`, `DB_PATH`, `AUTH_MODE`).
+
 ### Tests
 ```bash
 make test                                   # Go (race detector) + React type check

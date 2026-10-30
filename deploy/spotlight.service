@@ -1,6 +1,6 @@
 [Unit]
 Description=Spotlight Month web app
-Documentation=https://github.com/kenny-21342/events-tracker
+Documentation=https://github.com/PaoDevelopers/spotlight-companion-app
 After=network-online.target
 Wants=network-online.target
 

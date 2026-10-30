@@ -23,7 +23,7 @@ Fill these in; every step below depends on at least one of them.
 Either build it (needs Go 1.24+, Node 22+ and `make`; run on any machine, copy the result):
 
 ```
-git clone https://github.com/kenny-21342/events-tracker && cd events-tracker
+git clone https://github.com/PaoDevelopers/spotlight-companion-app && cd spotlight-companion-app
 git checkout <the branch or tag to deploy>
 make              # produces ./spotlight  (set GOARCH=arm64 for an ARM server)
 ./spotlight version

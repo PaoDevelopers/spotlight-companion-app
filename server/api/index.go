@@ -4,7 +4,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/kenny-21342/events-tracker/server/preview"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/preview"
 )
 
 // Handler serves every request.

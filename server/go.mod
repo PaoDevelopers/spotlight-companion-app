@@ -1,4 +1,4 @@
-module github.com/kenny-21342/events-tracker/server
+module github.com/PaoDevelopers/spotlight-companion-app/server
 
 go 1.24.0
 

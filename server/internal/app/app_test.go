@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kenny-21342/events-tracker/server/internal/config"
-	"github.com/kenny-21342/events-tracker/server/internal/db"
-	"github.com/kenny-21342/events-tracker/server/internal/token"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/config"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/db"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/token"
 )
 
 const secret = "0123456789abcdef0123456789abcdef"

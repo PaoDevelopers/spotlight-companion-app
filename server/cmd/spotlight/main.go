@@ -18,11 +18,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kenny-21342/events-tracker/server/internal/app"
-	"github.com/kenny-21342/events-tracker/server/internal/config"
-	"github.com/kenny-21342/events-tracker/server/internal/db"
-	"github.com/kenny-21342/events-tracker/server/internal/ui"
-	"github.com/kenny-21342/events-tracker/server/internal/web"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/config"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/db"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/ui"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/web"
 )
 
 var version = "dev" // set at build time: -ldflags "-X main.version=..."

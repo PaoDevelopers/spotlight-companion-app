@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kenny-21342/events-tracker/server/internal/app"
-	"github.com/kenny-21342/events-tracker/server/internal/token"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/token"
 )
 
 func (s *Server) adminStats(w http.ResponseWriter, r *http.Request, u app.User) {

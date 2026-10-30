@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/kenny-21342/events-tracker/server/internal/app"
-	"github.com/kenny-21342/events-tracker/server/internal/auth"
-	"github.com/kenny-21342/events-tracker/server/internal/token"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/auth"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/token"
 )
 
 func (s *Server) setSession(w http.ResponseWriter, userID int64) {

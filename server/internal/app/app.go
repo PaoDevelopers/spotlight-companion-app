@@ -11,8 +11,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/kenny-21342/events-tracker/server/internal/config"
-	"github.com/kenny-21342/events-tracker/server/internal/db"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/config"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/db"
 )
 
 // App wires the database and settings together. Now is replaceable so tests control time.

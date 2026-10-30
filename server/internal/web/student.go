@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/kenny-21342/events-tracker/server/internal/app"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
 )
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request, u app.User) {

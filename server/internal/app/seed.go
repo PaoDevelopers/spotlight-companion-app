@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/kenny-21342/events-tracker/server/internal/auth"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/auth"
 )
 
 // SeedDemo loads FAKE demo accounts and data (never use with real data) and returns the login codes by email.

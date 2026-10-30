@@ -7,7 +7,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/kenny-21342/events-tracker/server/internal/auth"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/auth"
 )
 
 type User struct {

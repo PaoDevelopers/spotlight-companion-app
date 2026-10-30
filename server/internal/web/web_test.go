@@ -22,9 +22,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/kenny-21342/events-tracker/server/internal/app"
-	"github.com/kenny-21342/events-tracker/server/internal/config"
-	"github.com/kenny-21342/events-tracker/server/internal/db"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/config"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/db"
 )
 
 const secret = "0123456789abcdef0123456789abcdef"

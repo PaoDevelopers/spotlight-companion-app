@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kenny-21342/events-tracker/server/internal/token"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/token"
 )
 
 // Check-in opens an hour before an event starts and closes when it ends.

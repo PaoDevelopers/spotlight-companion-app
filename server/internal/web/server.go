@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kenny-21342/events-tracker/server/internal/app"
-	"github.com/kenny-21342/events-tracker/server/internal/auth"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/auth"
 )
 
 func init() {

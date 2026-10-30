@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kenny-21342/events-tracker/server/internal/app"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
 )
 
 const maxBody = 2 << 20 // 2 MB: the biggest request is a pasted roster CSV

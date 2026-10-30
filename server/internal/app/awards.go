@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/kenny-21342/events-tracker/server/internal/awards"
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/awards"
 )
 
 // Category is the vote/score category behind the "Most Creative" award.

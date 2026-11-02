@@ -30,9 +30,13 @@ func TestMigrationsApplyOnceAndReopenCleanly(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer d.Close()
+	files, err := migrationFiles.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
 	var n int
-	if err := d.Read.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 1 {
-		t.Fatalf("schema_migrations rows = %d, err %v", n, err)
+	if err := d.Read.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != len(files) {
+		t.Fatalf("schema_migrations rows = %d, want %d, err %v", n, len(files), err)
 	}
 }
 

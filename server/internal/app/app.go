@@ -35,6 +35,7 @@ var (
 	ErrNotFound   = errors.New("not found")
 	ErrClosed     = errors.New("check-in is not open for this event")
 	ErrFull       = errors.New("this event is full")
+	ErrNoSignup   = errors.New("sign-up is not open for this event")
 	ErrBadToken   = errors.New("invalid or expired code")
 	ErrOwnExhibit = errors.New("you can't vote for your own project")
 	ErrInvalid    = errors.New("invalid input")

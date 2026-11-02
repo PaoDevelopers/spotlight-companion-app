@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { SHOTS, clickAndSave, hideDevOverlay, login } from "./helpers";
-import { csvPath } from "./env";
+import { GO, csvPath } from "./env";
 
 test.use({ viewport: { width: 1280, height: 900 } });
 
@@ -18,25 +18,51 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
   await shot("dashboard");
 
   // Create an event
-  await page.goto("/admin/events");
-  await page.fill('input[name="title"]', "Lab Open Night");
-  await page.selectOption('select[name="subject"]', "physics");
-  await page.fill('input[name="venue"]', "Lab 1");
-  await page.fill('input[name="startsAt"]', "2026-11-20T18:00");
-  await page.fill('input[name="endsAt"]', "2026-11-20T20:00");
-  await page.fill('input[name="capacity"]', "30");
-  await page.getByRole("button", { name: "Create event" }).click();
-  const link = page.getByRole("link", { name: /Lab Open Night/ });
-  await expect(link).toBeVisible();
-  await shot("events");
-  await link.click();
-  await expect(page.getByRole("heading", { name: "Lab Open Night" })).toBeVisible();
-  const eventId = Number(page.url().split("/").pop());
+  let eventId: number;
+  if (GO) {
+    await page.goto("/admin/events/new");
+    await page.fill('input[name="title"]', "Lab Open Night");
+    await page.getByRole("button", { name: "Physics" }).click();
+    await page.fill('input[name="venue"]', "Lab 1");
+    await page.fill('input[name="startsAt"]', "2026-11-20T18:00");
+    await expect(page.locator('input[name="endsAt"]')).toHaveValue("2026-11-20T19:00"); // defaults to one hour
+    await page.fill('input[name="endsAt"]', "2026-11-20T20:00");
+    await page.fill('input[name="capacity"]', "30");
+    await page.getByRole("button", { name: "Create event" }).click();
+    await expect(page).toHaveURL(/\/admin\/events\/\d+$/); // the editor's preview also shows the title, so wait for the redirect
+    eventId = Number(page.url().split("/").pop());
+    await shot("event-detail-new");
+    await page.goto("/admin/events");
+    await expect(page.getByRole("link", { name: /Lab Open Night/ })).toBeVisible();
+    await shot("events");
+    await page.goto(`/admin/events/${eventId}`);
+  } else {
+    await page.goto("/admin/events");
+    await page.fill('input[name="title"]', "Lab Open Night");
+    await page.selectOption('select[name="subject"]', "physics");
+    await page.fill('input[name="venue"]', "Lab 1");
+    await page.fill('input[name="startsAt"]', "2026-11-20T18:00");
+    await page.fill('input[name="endsAt"]', "2026-11-20T20:00");
+    await page.fill('input[name="capacity"]', "30");
+    await page.getByRole("button", { name: "Create event" }).click();
+    const link = page.getByRole("link", { name: /Lab Open Night/ });
+    await expect(link).toBeVisible();
+    await shot("events");
+    await link.click();
+    await expect(page.getByRole("heading", { name: "Lab Open Night" })).toBeVisible();
+    eventId = Number(page.url().split("/").pop());
+  }
 
   // Manual add, CSV export, undo
-  await page.fill('input[name="email"]', "student@demo.school");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByText("Demo Student")).toBeVisible();
+  if (GO) {
+    await page.fill('input[name="search"]', "Demo Stu");
+    await page.getByRole("list", { name: "Search results" }).getByRole("button", { name: "Check in" }).first().click();
+    await expect(page.getByText("Demo Student")).toBeVisible();
+  } else {
+    await page.fill('input[name="email"]', "student@demo.school");
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(page.getByText("Demo Student")).toBeVisible();
+  }
   const csv = await (await page.request.get(csvPath(eventId))).text();
   expect(csv.split("\n")[0]).toBe("name,class,method,time");
   expect(csv).toContain('"Demo Student","10A","manual"');
@@ -47,9 +73,16 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
   await expect(page.getByText("Demo Student")).toHaveCount(0);
 
   // Edit the event
-  await page.getByText("Edit event").click();
-  await page.locator('details input[name="title"]').fill("Lab Open Night (updated)");
+  if (GO) {
+    await page.getByRole("link", { name: "Edit event" }).click();
+    await page.fill('input[name="title"]', "Lab Open Night (updated)");
+    await shot("event-edit");
+  } else {
+    await page.getByText("Edit event").click();
+    await page.locator('details input[name="title"]').fill("Lab Open Night (updated)");
+  }
   await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/events/${eventId}$`));
   await expect(page.getByRole("heading", { name: "Lab Open Night (updated)" })).toBeVisible();
 
   // Exhibit with creator, printable QR
@@ -117,6 +150,7 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
 
   // Delete the event
   await page.goto(`/admin/events/${eventId}`);
+  page.once("dialog", (d) => d.accept()); // Go version asks before deleting
   await page.getByRole("button", { name: "Delete event" }).click();
   await expect(page).toHaveURL(/\/admin\/events$/);
   await expect(page.getByRole("link", { name: /Lab Open Night/ })).toHaveCount(0);

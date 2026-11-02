@@ -27,6 +27,10 @@ type eventBody struct {
 	StartsAt    string `json:"startsAt"` // RFC 3339, e.g. 2026-11-20T18:00:00+08:00
 	EndsAt      string `json:"endsAt"`
 	Capacity    *int64 `json:"capacity"`
+	ImageURL    string `json:"imageUrl"`
+	Host        string `json:"host"`
+	// SignupEnabled is a pointer so that older clients that don't send it keep sign-up on.
+	SignupEnabled *bool `json:"signupEnabled"`
 }
 
 func (b eventBody) input() (app.EventInput, error) {
@@ -35,7 +39,8 @@ func (b eventBody) input() (app.EventInput, error) {
 	if err1 != nil || err2 != nil {
 		return app.EventInput{}, app.ErrInvalid
 	}
-	return app.EventInput{Title: b.Title, Subject: b.Subject, Description: b.Description, Venue: b.Venue, StartsAt: st, EndsAt: en, Capacity: b.Capacity}, nil
+	return app.EventInput{Title: b.Title, Subject: b.Subject, Description: b.Description, Venue: b.Venue, StartsAt: st, EndsAt: en, Capacity: b.Capacity,
+		ImageURL: b.ImageURL, Host: b.Host, NoSignup: b.SignupEnabled != nil && !*b.SignupEnabled}, nil
 }
 
 func (s *Server) adminEvents(w http.ResponseWriter, r *http.Request, u app.User) {
@@ -80,8 +85,13 @@ func (s *Server) adminEvent(w http.ResponseWriter, r *http.Request, u app.User) 
 		s.serverError(w, r, err)
 		return
 	}
+	signups, err := s.app.Signups(r.Context(), id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	tag := token.MakeTag(s.app.Cfg.Secret, token.KindEvent, id)
-	writeJSON(w, http.StatusOK, map[string]any{"event": ev, "attendees": att, "tagToken": tag, "tagUrl": s.app.Cfg.PublicURL + "/c/" + tag})
+	writeJSON(w, http.StatusOK, map[string]any{"event": ev, "attendees": att, "signups": signups, "tagToken": tag, "tagUrl": s.app.Cfg.PublicURL + "/c/" + tag})
 }
 
 func (s *Server) adminUpdateEvent(w http.ResponseWriter, r *http.Request, u app.User) {
@@ -124,12 +134,19 @@ func (s *Server) adminAddAttendee(w http.ResponseWriter, r *http.Request, u app.
 		return
 	}
 	var in struct {
-		Email string `json:"email"`
+		Email  string `json:"email"`
+		UserID int64  `json:"userId"`
 	}
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if _, err := s.app.ManualCheckIn(r.Context(), id, in.Email); err != nil {
+	var err error
+	if in.UserID > 0 {
+		_, err = s.app.ManualCheckInID(r.Context(), id, in.UserID)
+	} else {
+		_, err = s.app.ManualCheckIn(r.Context(), id, in.Email)
+	}
+	if err != nil {
 		s.appError(w, r, err)
 		return
 	}
@@ -485,4 +502,58 @@ func (s *Server) cronAwards(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "winners": map[string]int{
 		"participation": len(res.Participation), "explorer": len(res.Explorer), "creative": len(res.Creative)}})
+}
+
+// adminSignup signs a student up on their behalf (for example one who has no device), by id or email.
+func (s *Server) adminSignup(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	var in struct {
+		Email  string `json:"email"`
+		UserID int64  `json:"userId"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	uid := in.UserID
+	if uid <= 0 {
+		target, err := s.app.UserByEmail(r.Context(), in.Email)
+		if err != nil {
+			s.appError(w, r, err)
+			return
+		}
+		uid = target.ID
+	}
+	if err := s.app.SignUp(r.Context(), id, uid, true); err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) adminCancelSignup(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	uid, ok := pathID(w, r, "userId")
+	if !ok {
+		return
+	}
+	if err := s.app.CancelSignup(r.Context(), id, uid); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) adminStudents(w http.ResponseWriter, r *http.Request, u app.User) {
+	hits, err := s.app.SearchStudents(r.Context(), r.URL.Query().Get("q"), 8)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, hits)
 }

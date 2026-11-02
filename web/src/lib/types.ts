@@ -22,6 +22,25 @@ export interface Event {
   startsAt: string;
   endsAt: string;
   capacity: number | null;
+  imageUrl: string | null;
+  host: string | null;
+  signupEnabled: boolean;
+  signupCount: number;
+}
+export interface Signup {
+  userId: number;
+  name: string;
+  email: string;
+  className: string;
+  byStaff: boolean;
+  at: string;
+  checkedIn: boolean;
+}
+export interface StudentHit {
+  id: number;
+  name: string;
+  email: string;
+  className: string;
 }
 export interface Exhibit {
   id: number;

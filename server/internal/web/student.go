@@ -64,6 +64,11 @@ func (s *Server) event(w http.ResponseWriter, r *http.Request, u app.User) {
 		s.serverError(w, r, err)
 		return
 	}
+	signedUp, err := s.app.IsSignedUp(ctx, id, u.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	comps, err := s.app.CompetitionsForEvent(ctx, id)
 	if err != nil {
 		s.serverError(w, r, err)
@@ -82,7 +87,31 @@ func (s *Server) event(w http.ResponseWriter, r *http.Request, u app.User) {
 		}
 		views = append(views, v)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"event": ev, "checkedIn": in, "competitions": views})
+	writeJSON(w, http.StatusOK, map[string]any{"event": ev, "checkedIn": in, "signedUp": signedUp, "competitions": views})
+}
+
+func (s *Server) signUp(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := s.app.SignUp(r.Context(), id, u.ID, false); err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) cancelSignUp(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := s.app.CancelSignup(r.Context(), id, u.ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request, u app.User) {

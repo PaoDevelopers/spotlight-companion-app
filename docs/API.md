@@ -67,8 +67,11 @@ sign-in; other domains are refused.
 `GET /api/events?subject=physics|cs` → `[Event]` ordered by start (a subject filter also includes `both`).
 `Event` = `{id,title,subject,description,venue|null,startsAt,endsAt,capacity|null}`.
 
-`GET /api/events/{id}` → `{"event":Event,"checkedIn":bool,"competitions":[{id,eventId,name,isTeam,myStatus|null}]}`.
+`GET /api/events/{id}` → `{"event":Event,"checkedIn":bool,"signedUp":bool,"competitions":[{id,eventId,name,isTeam,myStatus|null}]}`.
 `myStatus` is `null` when the student is not registered.
+`PUT /api/events/{id}/signup` → 204: reserve a place (harmless to repeat). `409 full` when the places are taken, `409 signup_closed`
+when sign-up is off or the event is over. `DELETE /api/events/{id}/signup` → 204. A signed-up student keeps their place at
+check-in: walk-ins can't take it. A student without a device is found by the teacher (see `/api/admin/students`).
 
 `POST /api/competitions/{id}/register` `{"team": ""}` → 204. Registering twice is harmless.
 
@@ -103,14 +106,20 @@ Check-in codes contain dots, dashes and underscores; do not treat them as file n
 
 **Events**
 - `GET /api/admin/events` → `[Event]`
-- `POST /api/admin/events` `{title,subject,description,venue,startsAt,endsAt,capacity|null}` → 201 `Event`
-  (`subject` is `physics`, `cs` or `both`; end must be after start; capacity > 0 or null). Invalid → `422 invalid`.
-- `GET /api/admin/events/{id}` → `{"event":Event,"attendees":[{userId,name,className,method,at}],"tagToken","tagUrl"}`.
+- `POST /api/admin/events` `{title,subject,description,venue,host,imageUrl,startsAt,endsAt,capacity|null,signupEnabled}` → 201 `Event`
+  (`subject` is `physics`, `cs` or `both`; end must be after start; capacity > 0 or null; `description` is Markdown;
+  `imageUrl` must be `https://...` or a `/path`; `signupEnabled` defaults to true when omitted). Invalid → `422 invalid`.
+  `Event` = `{id,title,subject,description,venue|null,startsAt,endsAt,capacity|null,imageUrl|null,host|null,signupEnabled,signupCount}`.
+- `GET /api/admin/events/{id}` → `{"event":Event,"attendees":[{userId,name,className,method,at}],"signups":[{userId,name,email,className,byStaff,at,checkedIn}],"tagToken","tagUrl"}`.
   `tagUrl` is the permanent link to write to an NFC tag or print as a QR code for that event.
 - `PUT /api/admin/events/{id}` same body as create → `Event`. `DELETE /api/admin/events/{id}` → 204.
 - `GET /api/admin/events/{id}/token` → `{"token","url"}`: the **rotating** code for the projector QR. It is valid for
   about a minute. Fetch it every 10 seconds and re-render the QR from `url`. Never cached.
-- `POST /api/admin/events/{id}/attendees` `{"email": "..."}` → 204: manual check-in (ignores the time window and capacity).
+- `POST /api/admin/events/{id}/attendees` `{"userId": 5}` or `{"email": "..."}` → 204: manual check-in (ignores the time window and capacity).
+- `POST /api/admin/events/{id}/signups` `{"userId": 5}` or `{"email": "..."}` → 204: sign a student up on their behalf (ignores capacity,
+  the switch and the end time). `DELETE /api/admin/events/{id}/signups/{userId}` → 204.
+- `GET /api/admin/students?q=` → `[{id,name,email,className}]` (max 8; needs 2+ characters; matches name, email or class). For finding a
+  student who has no phone.
 - `DELETE /api/admin/events/{id}/attendees/{userId}` → 204 (undo).
 - `GET /api/admin/events/{id}/attendees.csv` → `text/csv` download.
 - `POST /api/admin/events/{id}/scan-pass` `{"token": "<scanned student pass>"}` → `{"ok","message"}` like `/api/scan`.

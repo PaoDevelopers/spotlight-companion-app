@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import Markdown from "react-markdown";
+import { Prose } from "@/components/Prose";
 import { Button } from "@/components/ui/button";
 import { api, errorMessage } from "@/lib/api";
 import type { Exhibit } from "@/lib/types";
@@ -52,10 +52,7 @@ export function ExhibitDetail() {
       <h1 className="text-2xl font-bold">{x.title}</h1>
       <p className="text-muted-foreground">{x.summary}</p>
       {x.imageUrl && <img src={x.imageUrl} alt={x.title} className="w-full rounded-lg" />}
-      {/* react-markdown does not render raw HTML, so exhibit text can't inject scripts or styles */}
-      <div className="space-y-2 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
-        <Markdown>{x.bodyMd}</Markdown>
-      </div>
+      <Prose>{x.bodyMd}</Prose>
       <div className="rounded-lg bg-card p-3 shadow-sm">
         <Button variant="vote" disabled={vote.isPending} onClick={() => vote.mutate(x.id)}>
           {votedForThis ? "⭐ Your creative vote" : "Vote Most Creative"}

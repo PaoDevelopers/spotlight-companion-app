@@ -6,6 +6,7 @@ import "./index.css";
 import { AdminLayout, StudentLayout } from "@/components/Layouts";
 import { AuthProvider, RequireUser } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { loadAdminEvents, loadDashboard } from "@/lib/prefetch";
 import Login from "@/pages/Login";
 import Home from "@/pages/Home";
 import { Events, EventDetail } from "@/pages/Events";
@@ -15,12 +16,13 @@ const Exhibits = lazy(() => exhibitsPage.then((m) => ({ default: m.Exhibits })))
 const ExhibitDetail = lazy(() => exhibitsPage.then((m) => ({ default: m.ExhibitDetail })));
 import Leaderboard from "@/pages/Leaderboard";
 import Me from "@/pages/Me";
-const Dashboard = lazy(() => import("@/pages/admin/Dashboard"));
-const adminEvents = import("@/pages/admin/Events");
-const AdminEvents = lazy(() => adminEvents.then((m) => ({ default: m.AdminEvents })));
-const AdminEventDetail = lazy(() => adminEvents.then((m) => ({ default: m.AdminEventDetail })));
-const AdminDisplay = lazy(() => adminEvents.then((m) => ({ default: m.AdminDisplay })));
-const AdminScanPasses = lazy(() => adminEvents.then((m) => ({ default: m.AdminScanPasses })));
+const Dashboard = lazy(() => loadDashboard());
+const AdminEvents = lazy(() => loadAdminEvents().then((m) => ({ default: m.AdminEvents })));
+const AdminEventDetail = lazy(() => loadAdminEvents().then((m) => ({ default: m.AdminEventDetail })));
+const AdminDisplay = lazy(() => loadAdminEvents().then((m) => ({ default: m.AdminDisplay })));
+const AdminScanPasses = lazy(() => loadAdminEvents().then((m) => ({ default: m.AdminScanPasses })));
+const AdminSheet = lazy(() => loadAdminEvents().then((m) => ({ default: m.AdminSheet })));
+const AdminEventEdit = lazy(() => import("@/pages/admin/EventEditor").then((m) => ({ default: m.AdminEventEdit })));
 const AdminExhibits = lazy(() => import("@/pages/admin/Exhibits"));
 const AdminCompetitions = lazy(() => import("@/pages/admin/Competitions"));
 const AdminAwards = lazy(() => import("@/pages/admin/Awards"));
@@ -57,7 +59,10 @@ function App() {
       <Route path="admin" element={<Admin />}>
         <Route index element={<Dashboard />} />
         <Route path="events" element={<AdminEvents />} />
+        <Route path="events/new" element={<AdminEventEdit />} />
         <Route path="events/:id" element={<AdminEventDetail />} />
+        <Route path="events/:id/edit" element={<AdminEventEdit />} />
+        <Route path="events/:id/sheet" element={<AdminSheet />} />
         <Route path="events/:id/display" element={<AdminDisplay />} />
         <Route path="events/:id/scan" element={<AdminScanPasses />} />
         <Route path="exhibits" element={<AdminExhibits />} />

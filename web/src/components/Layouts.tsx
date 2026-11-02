@@ -1,4 +1,7 @@
+import { Suspense, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, NavLink, Outlet } from "react-router-dom";
+import { prefetchAdmin } from "@/lib/prefetch";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -13,18 +16,28 @@ const NAV: [string, string][] = [
 
 export function StudentLayout() {
   const { me } = useAuth();
+  const qc = useQueryClient();
+  const staff = !!me && me.role !== "student";
+  // Teachers will probably open the portal soon, so fetch its code and first data while they look at this page.
+  useEffect(() => {
+    if (!staff) return;
+    const t = window.setTimeout(() => prefetchAdmin(qc), 300);
+    return () => window.clearTimeout(t);
+  }, [staff, qc]);
   return (
     <div className="mx-auto min-h-screen max-w-2xl pb-20">
       <header className="flex items-center justify-between p-4">
         <span className="font-bold">Spotlight Month</span>
         {me && me.role !== "student" && (
-          <Link to="/admin" className="text-sm underline">
+          <Link to="/admin" className="text-sm underline" onPointerEnter={() => prefetchAdmin(qc)} onFocus={() => prefetchAdmin(qc)}>
             Teacher portal
           </Link>
         )}
       </header>
       <div className="px-4">
-        <Outlet />
+        <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
+          <Outlet />
+        </Suspense>
       </div>
       <nav className="fixed inset-x-0 bottom-0 border-t bg-card">
         <ul className="mx-auto flex max-w-2xl justify-around">
@@ -65,7 +78,9 @@ export function AdminLayout({ showRoster }: { showRoster: boolean }) {
           Student view
         </Link>
       </nav>
-      <Outlet />
+      <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
+        <Outlet />
+      </Suspense>
     </div>
   );
 }

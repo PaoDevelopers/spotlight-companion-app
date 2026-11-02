@@ -1,73 +1,58 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input, Select, Textarea } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+import { SubjectBadge } from "@/components/ui/badge";
 import { QrImage } from "@/components/QrImage";
 import { Scanner } from "@/components/Scanner";
 import { api } from "@/lib/api";
-import { fmtDateTime, fromLocalInput, toLocalInput } from "@/lib/format";
-import type { Attendee, Event, ScanResult } from "@/lib/types";
-import { FormError, SaveButton, panel } from "./shared";
-
-function EventForm({ event, label, onSaved }: { event?: Event; label: string; onSaved?: (e: Event) => void }) {
-  const qc = useQueryClient();
-  const save = useMutation({
-    mutationFn: (body: object) => (event ? api.put<Event>(`/api/admin/events/${event.id}`, body) : api.post<Event>("/api/admin/events", body)),
-    onSuccess: (e) => {
-      qc.invalidateQueries({ queryKey: ["admin-events"] });
-      qc.invalidateQueries({ queryKey: ["admin-event"] });
-      onSaved?.(e);
-    },
-  });
-  function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const cap = String(f.get("capacity") ?? "").trim();
-    save.mutate({
-      title: String(f.get("title")), subject: String(f.get("subject")), venue: String(f.get("venue")), description: String(f.get("description")),
-      startsAt: fromLocalInput(String(f.get("startsAt"))), endsAt: fromLocalInput(String(f.get("endsAt"))), capacity: cap ? Number(cap) : null,
-    });
-    if (!event) e.currentTarget.reset();
-  }
-  return (
-    <form onSubmit={submit} className={`${panel} grid gap-2 sm:grid-cols-2`}>
-      <Input name="title" required placeholder="Title" defaultValue={event?.title} className="sm:col-span-2" />
-      <Select name="subject" defaultValue={event?.subject ?? "both"}>
-        <option value="physics">Physics</option>
-        <option value="cs">CS</option>
-        <option value="both">Both</option>
-      </Select>
-      <Input name="venue" placeholder="Venue" defaultValue={event?.venue ?? ""} />
-      <label className="text-sm">
-        Starts
-        <Input name="startsAt" type="datetime-local" required defaultValue={toLocalInput(event?.startsAt)} />
-      </label>
-      <label className="text-sm">
-        Ends
-        <Input name="endsAt" type="datetime-local" required defaultValue={toLocalInput(event?.endsAt)} />
-      </label>
-      <Input name="capacity" type="number" min="1" placeholder="Capacity (optional)" defaultValue={event?.capacity ?? ""} />
-      <Textarea name="description" placeholder="Description" defaultValue={event?.description} className="sm:col-span-2" />
-      <FormError error={save.error} />
-      <SaveButton pending={save.isPending} className="sm:col-span-2">
-        {label}
-      </SaveButton>
-    </form>
-  );
-}
+import { fmtDateTime, fmtLongDateTime } from "@/lib/format";
+import type { Attendee, Event, ScanResult, Signup, StudentHit } from "@/lib/types";
+import { FormError, panel } from "./shared";
 
 export function AdminEvents() {
   const q = useQuery({ queryKey: ["admin-events"], queryFn: () => api.get<Event[]>("/api/admin/events") });
+  const now = Date.now();
+  const upcoming = q.data?.filter((e) => new Date(e.endsAt).getTime() >= now) ?? [];
+  const past = (q.data?.filter((e) => new Date(e.endsAt).getTime() < now) ?? []).reverse();
+  const row = (e: Event) => (
+    <Link key={e.id} to={`/admin/events/${e.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm hover:bg-accent">
+      {e.imageUrl ? <img src={e.imageUrl} alt="" className="size-12 rounded object-cover" /> : <div className="size-12 rounded bg-muted" aria-hidden />}
+      <div className="min-w-0 flex-1">
+        <div className="truncate">
+          <SubjectBadge subject={e.subject} />
+          <b>{e.title}</b>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {fmtDateTime(e.startsAt)}
+          {e.venue && ` · ${e.venue}`}
+        </div>
+      </div>
+      <div className="text-right text-sm text-muted-foreground">
+        {e.signupEnabled ? `${e.signupCount}${e.capacity ? ` / ${e.capacity}` : ""} signed up` : "no sign-up"}
+      </div>
+    </Link>
+  );
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Events</h1>
-      <EventForm label="Create event" />
-      {q.data?.map((e) => (
-        <Link key={e.id} to={`/admin/events/${e.id}`} className="block rounded-lg bg-card p-3 shadow-sm">
-          <b>{e.title}</b> <span className="text-sm text-muted-foreground">{fmtDateTime(e.startsAt)}</span>
-        </Link>
-      ))}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Events</h1>
+        <Button asChild><Link to="/admin/events/new">New event</Link></Button>
+      </div>
+      {q.data && q.data.length === 0 && <p className="text-muted-foreground">No events yet. Create the first one.</p>}
+      {upcoming.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-semibold">Upcoming and happening now</h2>
+          {upcoming.map(row)}
+        </section>
+      )}
+      {past.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-semibold text-muted-foreground">Past</h2>
+          {past.map(row)}
+        </section>
+      )}
     </div>
   );
 }
@@ -75,8 +60,53 @@ export function AdminEvents() {
 interface AdminEventView {
   event: Event;
   attendees: Attendee[];
+  signups: Signup[];
   tagToken: string;
   tagUrl: string;
+}
+
+/** Find a student by name, class or email and check them in or sign them up: for anyone who has no phone with them. */
+function StudentDesk({ eventId, signedUp, arrived, onChange }: { eventId: string; signedUp: Set<number>; arrived: Set<number>; onChange: () => void }) {
+  const [text, setText] = useState("");
+  const term = text.trim();
+  const hits = useQuery({
+    queryKey: ["admin-students", term],
+    queryFn: () => api.get<StudentHit[]>(`/api/admin/students?q=${encodeURIComponent(term)}`),
+    enabled: term.length >= 2,
+    placeholderData: (prev) => prev,
+  });
+  const checkIn = useMutation({ mutationFn: (userId: number) => api.post(`/api/admin/events/${eventId}/attendees`, { userId }), onSuccess: () => { onChange(); setText(""); } });
+  const signUp = useMutation({ mutationFn: (userId: number) => api.post(`/api/admin/events/${eventId}/signups`, { userId }), onSuccess: onChange });
+  return (
+    <section className={panel}>
+      <h2 className="font-semibold">Student has no phone?</h2>
+      <p className="mb-2 text-sm text-muted-foreground">Search by name, class or email. Check them in on the spot, or sign them up beforehand.</p>
+      <Input type="search" name="search" autoComplete="off" placeholder="Search students…" value={text} onChange={(e) => setText(e.target.value)} />
+      <FormError error={checkIn.error ?? signUp.error} />
+      {term.length >= 2 && hits.data && (
+        <ul className="mt-2 divide-y" aria-label="Search results">
+          {hits.data.length === 0 && <li className="py-2 text-sm text-muted-foreground">No student matches “{term}”.</li>}
+          {hits.data.map((h) => (
+            <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span>
+                {h.name} <span className="text-sm text-muted-foreground">{h.className}</span>
+              </span>
+              <span className="flex gap-2">
+                {arrived.has(h.id) ? (
+                  <span className="text-sm text-emerald-700">✓ Checked in</span>
+                ) : (
+                  <Button size="sm" disabled={checkIn.isPending} onClick={() => checkIn.mutate(h.id)}>Check in</Button>
+                )}
+                {!arrived.has(h.id) && !signedUp.has(h.id) && (
+                  <Button size="sm" variant="outline" disabled={signUp.isPending} onClick={() => signUp.mutate(h.id)}>Sign up</Button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 export function AdminEventDetail() {
@@ -84,55 +114,149 @@ export function AdminEventDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["admin-event", id], queryFn: () => api.get<AdminEventView>(`/api/admin/events/${id}`), refetchInterval: 10_000 });
-  const [email, setEmail] = useState("");
   const refresh = () => qc.invalidateQueries({ queryKey: ["admin-event", id] });
-  const add = useMutation({ mutationFn: () => api.post(`/api/admin/events/${id}/attendees`, { email }), onSuccess: () => { setEmail(""); refresh(); } });
+  const checkIn = useMutation({ mutationFn: (userId: number) => api.post(`/api/admin/events/${id}/attendees`, { userId }), onSuccess: refresh });
   const undo = useMutation({ mutationFn: (userId: number) => api.del(`/api/admin/events/${id}/attendees/${userId}`), onSuccess: refresh });
+  const drop = useMutation({ mutationFn: (userId: number) => api.del(`/api/admin/events/${id}/signups/${userId}`), onSuccess: refresh });
   const del = useMutation({
     mutationFn: () => api.del(`/api/admin/events/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-events"] }); navigate("/admin/events", { replace: true }); },
   });
   if (q.isError) return <p>Event not found.</p>;
   if (!q.data) return null;
-  const { event: e, attendees, tagUrl } = q.data;
+  const { event: e, attendees, signups, tagUrl } = q.data;
+  const waiting = signups.filter((s) => !s.checkedIn);
+  const arrivedIds = new Set(attendees.map((a) => a.userId));
+  const signedIds = new Set(signups.map((s) => s.userId));
+  const stat = (label: string, value: string) => (
+    <div className="rounded-lg bg-card p-3 text-center shadow-sm">
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  );
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{e.title}</h1>
-      <div className="flex flex-wrap gap-3">
-        <Button asChild><Link to={`/admin/events/${id}/display`}>Display check-in QR</Link></Button>
-        <Button asChild variant="outline"><Link to={`/admin/events/${id}/scan`}>Scan student passes</Link></Button>
-        <Button asChild variant="outline"><a href={`/api/admin/events/${id}/attendees.csv`}>Export CSV</a></Button>
+      <header className="space-y-2">
+        {e.imageUrl && <img src={e.imageUrl} alt="" className="h-32 w-full rounded-lg object-cover" />}
+        <div>
+          <SubjectBadge subject={e.subject} />
+          <h1 className="inline text-2xl font-bold">{e.title}</h1>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {fmtLongDateTime(e.startsAt)}
+          {e.venue && ` · ${e.venue}`}
+          {e.host && ` · hosted by ${e.host}`}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild><Link to={`/admin/events/${id}/display`}>Display check-in QR</Link></Button>
+          <Button asChild variant="outline"><Link to={`/admin/events/${id}/scan`}>Scan student passes</Link></Button>
+          <Button asChild variant="outline"><Link to={`/admin/events/${id}/edit`}>Edit event</Link></Button>
+          <Button asChild variant="outline"><Link to={`/admin/events/new?from=${id}`}>Duplicate</Link></Button>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-3 gap-3">
+        {stat("Signed up", e.capacity ? `${signups.length} / ${e.capacity}` : String(signups.length))}
+        {stat("Here now", e.capacity ? `${attendees.length} / ${e.capacity}` : String(attendees.length))}
+        {stat("Still expected", String(waiting.length))}
       </div>
+
+      <StudentDesk eventId={id!} signedUp={signedIds} arrived={arrivedIds} onChange={refresh} />
+
       <section className={panel}>
-        <h2 className="font-semibold">
-          Attendees ({attendees.length}
-          {e.capacity ? ` / ${e.capacity}` : ""})
-        </h2>
-        <form onSubmit={(ev) => { ev.preventDefault(); add.mutate(); }} className="my-2 flex gap-2">
-          <Input type="email" name="email" placeholder="Add by student email" value={email} onChange={(x) => setEmail(x.target.value)} className="flex-1" />
-          <Button variant="outline" disabled={add.isPending}>Add</Button>
-        </form>
-        <FormError error={add.error} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Signed up, not here yet ({waiting.length})</h2>
+          <Button asChild size="sm" variant="outline"><Link to={`/admin/events/${id}/sheet`}>Print sign-in sheet</Link></Button>
+        </div>
+        <FormError error={checkIn.error ?? drop.error} />
+        {waiting.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">{signups.length === 0 ? "Nobody has signed up." : "Everyone who signed up has arrived."}</p>
+        ) : (
+          <ul className="divide-y">
+            {waiting.map((s) => (
+              <li key={s.userId} className="flex items-center justify-between gap-2 py-2">
+                <span>
+                  {s.name} <span className="text-sm text-muted-foreground">{s.className}</span>
+                </span>
+                <span className="flex items-center gap-3">
+                  <Button size="sm" disabled={checkIn.isPending} onClick={() => checkIn.mutate(s.userId)}>Check in</Button>
+                  <button className="text-sm text-red-700 underline" onClick={() => drop.mutate(s.userId)}>Remove</button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className={panel}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Checked in ({attendees.length}{e.capacity ? ` / ${e.capacity}` : ""})</h2>
+          <Button asChild size="sm" variant="outline"><a href={`/api/admin/events/${id}/attendees.csv`}>Export CSV</a></Button>
+        </div>
         <ul className="divide-y">
           {attendees.map((a) => (
             <li key={a.userId} className="flex items-center justify-between py-1">
-              <span>{a.name} <span className="text-sm text-muted-foreground">{a.className} · {a.method}</span></span>
+              <span>{a.name} <span className="text-sm text-muted-foreground">{a.className} · {a.method}{!signedIds.has(a.userId) && " · walk-in"}</span></span>
               <button className="text-sm text-red-700 underline" onClick={() => undo.mutate(a.userId)}>Undo</button>
             </li>
           ))}
         </ul>
       </section>
+
       <section className={panel}>
         <h2 className="font-semibold">NFC tag / printable QR</h2>
         <p className="mb-2 break-all text-sm text-muted-foreground">Write this URL to an NFC tag (or print the QR). It is permanent, so only use it at the venue.</p>
         <code className="block break-all text-xs">{tagUrl}</code>
         <div className="mt-2"><QrImage text={tagUrl} size={160} /></div>
       </section>
-      <details>
-        <summary className="cursor-pointer font-semibold">Edit event</summary>
-        <EventForm event={e} label="Save changes" />
-      </details>
-      <button className="text-red-700 underline" onClick={() => del.mutate()} disabled={del.isPending}>Delete event</button>
+      <button
+        className="text-red-700 underline"
+        onClick={() => { if (window.confirm(`Delete “${e.title}” and its check-ins, sign-ups and competitions? This cannot be undone.`)) del.mutate(); }}
+        disabled={del.isPending}
+      >
+        Delete event
+      </button>
+    </div>
+  );
+}
+
+/** A paper sheet for the door: everyone signed up, a box to tick, and blank lines for walk-ins. Then tick them off in the desk. */
+export function AdminSheet() {
+  const { id } = useParams();
+  const q = useQuery({ queryKey: ["admin-event", id], queryFn: () => api.get<AdminEventView>(`/api/admin/events/${id}`) });
+  if (!q.data) return null;
+  const { event: e, signups } = q.data;
+  return (
+    <div className="space-y-3">
+      <div className="no-print flex gap-2">
+        <Button onClick={() => window.print()}>Print</Button>
+        <Button asChild variant="outline"><Link to={`/admin/events/${id}`}>Back</Link></Button>
+      </div>
+      <h1 className="text-2xl font-bold">{e.title}: sign-in sheet</h1>
+      <p>{fmtLongDateTime(e.startsAt)}{e.venue && ` · ${e.venue}`}</p>
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="border-b-2 text-left">
+            <th className="w-10 py-1">Here</th><th>Name</th><th>Class</th>
+          </tr>
+        </thead>
+        <tbody>
+          {signups.map((s) => (
+            <tr key={s.userId} className="border-b">
+              <td className="py-2"><span className="inline-block size-5 border-2 border-black align-middle" />{s.checkedIn && " ✓"}</td>
+              <td>{s.name}</td>
+              <td>{s.className}</td>
+            </tr>
+          ))}
+          {Array.from({ length: 8 }, (_, i) => (
+            <tr key={`blank${i}`} className="border-b">
+              <td className="py-3"><span className="inline-block size-5 border-2 border-black align-middle" /></td>
+              <td className="text-muted-foreground">{i === 0 ? "Walk-ins (write name and class)" : ""}</td>
+              <td />
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

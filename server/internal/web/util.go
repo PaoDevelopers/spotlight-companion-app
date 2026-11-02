@@ -90,6 +90,8 @@ func (s *Server) appError(w http.ResponseWriter, r *http.Request, err error) {
 		fail(w, http.StatusUnprocessableEntity, "bad_token", err.Error())
 	case errors.Is(err, app.ErrClosed):
 		fail(w, http.StatusConflict, "closed", err.Error())
+	case errors.Is(err, app.ErrNoSignup):
+		fail(w, http.StatusConflict, "signup_closed", err.Error())
 	case errors.Is(err, app.ErrFull):
 		fail(w, http.StatusConflict, "full", err.Error())
 	default:

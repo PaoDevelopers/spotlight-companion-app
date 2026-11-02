@@ -47,11 +47,21 @@ func (a *App) record(ctx context.Context, userID, eventID int64, method string, 
 			return nil
 		}
 		if capacity.Valid && method != "manual" {
-			var n int64
+			var n, signedUp, held int64
 			if err := t.QueryRowContext(ctx, `SELECT COUNT(*) FROM checkins WHERE event_id = ?`, eventID).Scan(&n); err != nil {
 				return err
 			}
-			if n >= capacity.Int64 {
+			// Places promised to students who signed up and haven't arrived yet are not available to walk-ins.
+			if err := t.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_signups WHERE event_id = ? AND user_id = ?`, eventID, userID).Scan(&signedUp); err != nil {
+				return err
+			}
+			if err := t.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_signups WHERE event_id = ? AND user_id NOT IN (SELECT user_id FROM checkins WHERE event_id = ?)`, eventID, eventID).Scan(&held); err != nil {
+				return err
+			}
+			if signedUp > 0 {
+				held = 0 // this student's own place is one of the held ones
+			}
+			if n+held >= capacity.Int64 {
 				return ErrFull
 			}
 		}
@@ -85,6 +95,16 @@ func (a *App) CheckInByPass(ctx context.Context, eventID int64, passToken string
 	}
 	r, err := a.record(ctx, uid, eventID, "pass", a.Now())
 	return u, r, err
+}
+
+// ManualCheckInID is the same by user id, for the "tap a name" buttons.
+func (a *App) ManualCheckInID(ctx context.Context, eventID, userID int64) (User, error) {
+	u, err := a.UserByID(ctx, userID)
+	if err != nil {
+		return User{}, err
+	}
+	_, err = a.record(ctx, u.ID, eventID, "manual", a.Now())
+	return u, err
 }
 
 // ManualCheckIn is a teacher adding someone by hand: always allowed, even outside the window or when full.

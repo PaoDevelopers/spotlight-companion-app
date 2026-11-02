@@ -17,6 +17,11 @@ type Event struct {
 	StartsAt    string  `json:"startsAt"`
 	EndsAt      string  `json:"endsAt"`
 	Capacity    *int64  `json:"capacity"`
+	ImageURL    *string `json:"imageUrl"`
+	Host        *string `json:"host"`
+	// SignupEnabled lets students reserve a place ahead of time. SignupCount is how many have.
+	SignupEnabled bool  `json:"signupEnabled"`
+	SignupCount   int64 `json:"signupCount"`
 }
 
 type EventInput struct {
@@ -27,9 +32,16 @@ type EventInput struct {
 	StartsAt    time.Time
 	EndsAt      time.Time
 	Capacity    *int64
+	ImageURL    string
+	Host        string
+	// NoSignup switches advance sign-up off (the default is on).
+	NoSignup bool
 }
 
 func (in EventInput) validate() error {
+	if u := strings.TrimSpace(in.ImageURL); u != "" && !strings.HasPrefix(u, "https://") && !(strings.HasPrefix(u, "/") && !strings.HasPrefix(u, "//")) {
+		return ErrInvalid
+	}
 	if strings.TrimSpace(in.Title) == "" || in.StartsAt.IsZero() || in.EndsAt.IsZero() || !in.EndsAt.After(in.StartsAt) {
 		return ErrInvalid
 	}
@@ -42,12 +54,15 @@ func (in EventInput) validate() error {
 	return nil
 }
 
-const eventCols = `id, title, subject, description, venue, starts_at, ends_at, capacity`
+const eventCols = `id, title, subject, description, venue, starts_at, ends_at, capacity, image_url, host, signup_enabled,
+	(SELECT COUNT(*) FROM event_signups WHERE event_id = events.id)`
 
 func scanEvent(r interface{ Scan(...any) error }) (Event, error) {
 	var e Event
 	var s, en int64
-	err := r.Scan(&e.ID, &e.Title, &e.Subject, &e.Description, &e.Venue, &s, &en, &e.Capacity)
+	var signup int
+	err := r.Scan(&e.ID, &e.Title, &e.Subject, &e.Description, &e.Venue, &s, &en, &e.Capacity, &e.ImageURL, &e.Host, &signup, &e.SignupCount)
+	e.SignupEnabled = signup == 1
 	e.StartsAt, e.EndsAt = Time(fromUnix(s)), Time(fromUnix(en))
 	return e, err
 }
@@ -105,8 +120,8 @@ func (a *App) CreateEvent(ctx context.Context, in EventInput) (Event, error) {
 	if err := in.validate(); err != nil {
 		return Event{}, err
 	}
-	res, err := a.DB.Write.ExecContext(ctx, `INSERT INTO events (title, subject, description, venue, starts_at, ends_at, capacity) VALUES (?, ?, ?, NULLIF(?, ''), ?, ?, ?)`,
-		strings.TrimSpace(in.Title), in.Subject, in.Description, in.Venue, unix(in.StartsAt), unix(in.EndsAt), in.Capacity)
+	res, err := a.DB.Write.ExecContext(ctx, `INSERT INTO events (title, subject, description, venue, starts_at, ends_at, capacity, image_url, host, signup_enabled) VALUES (?, ?, ?, NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?)`,
+		strings.TrimSpace(in.Title), in.Subject, in.Description, in.Venue, unix(in.StartsAt), unix(in.EndsAt), in.Capacity, strings.TrimSpace(in.ImageURL), strings.TrimSpace(in.Host), b2i(!in.NoSignup))
 	if err != nil {
 		return Event{}, err
 	}
@@ -118,8 +133,8 @@ func (a *App) UpdateEvent(ctx context.Context, id int64, in EventInput) (Event, 
 	if err := in.validate(); err != nil {
 		return Event{}, err
 	}
-	res, err := a.DB.Write.ExecContext(ctx, `UPDATE events SET title=?, subject=?, description=?, venue=NULLIF(?, ''), starts_at=?, ends_at=?, capacity=? WHERE id=?`,
-		strings.TrimSpace(in.Title), in.Subject, in.Description, in.Venue, unix(in.StartsAt), unix(in.EndsAt), in.Capacity, id)
+	res, err := a.DB.Write.ExecContext(ctx, `UPDATE events SET title=?, subject=?, description=?, venue=NULLIF(?, ''), starts_at=?, ends_at=?, capacity=?, image_url=NULLIF(?, ''), host=NULLIF(?, ''), signup_enabled=? WHERE id=?`,
+		strings.TrimSpace(in.Title), in.Subject, in.Description, in.Venue, unix(in.StartsAt), unix(in.EndsAt), in.Capacity, strings.TrimSpace(in.ImageURL), strings.TrimSpace(in.Host), b2i(!in.NoSignup), id)
 	if err != nil {
 		return Event{}, err
 	}

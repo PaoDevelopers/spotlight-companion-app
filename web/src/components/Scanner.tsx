@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
+import { openBackCamera } from "@/lib/camera";
 
 /** Camera QR scanner. Calls onScan once per distinct code. */
 export function Scanner({ onScan }: { onScan: (text: string) => void }) {
@@ -16,7 +17,7 @@ export function Scanner({ onScan }: { onScan: (text: string) => void }) {
     const canvas = document.createElement("canvas");
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        stream = await openBackCamera();
         if (stopped) return stream.getTracks().forEach((t) => t.stop());
         const v = video.current!;
         v.srcObject = stream;

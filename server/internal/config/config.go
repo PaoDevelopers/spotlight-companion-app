@@ -23,7 +23,6 @@ type Config struct {
 	AdminEmails                []string
 
 	TLSCert, TLSKey string // optional; leave empty behind a TLS-terminating proxy
-	CronSecret      string // optional; enables POST /api/cron/awards for an external scheduler
 
 	DemoSeed      bool   // seed fake demo accounts/data when the database is empty (dev, tests, demos)
 	DemoLoginCode string // fixed login code for the demo accounts (tests only)
@@ -76,7 +75,6 @@ func Load(path string) (*Config, error) {
 		StudentDomain: strings.ToLower(get("STUDENT_DOMAIN", "stu.ykpaoschool.cn")),
 		TLSCert:       get("TLS_CERT", ""),
 		TLSKey:        get("TLS_KEY", ""),
-		CronSecret:    get("CRON_SECRET", ""),
 		DemoSeed:      get("DEMO_SEED", "") == "1",
 		DemoLoginCode: get("DEMO_LOGIN_CODE", ""),
 	}

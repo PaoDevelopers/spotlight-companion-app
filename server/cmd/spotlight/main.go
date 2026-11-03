@@ -106,8 +106,6 @@ func serve(ctx context.Context, a *app.App, log *slog.Logger) error {
 		}
 	}
 
-	go dailyAwards(ctx, a, log)
-
 	srv := &http.Server{
 		Addr:              cfg.Listen,
 		Handler:           web.New(a, log, ui.FS()),
@@ -135,26 +133,4 @@ func serve(ctx context.Context, a *app.App, log *slog.Logger) error {
 	shutdown, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return srv.Shutdown(shutdown)
-}
-
-// dailyAwards refreshes the DRAFT awards every night at 03:00 server time. It never publishes anything:
-// a teacher still reviews and publishes by hand.
-func dailyAwards(ctx context.Context, a *app.App, log *slog.Logger) {
-	for {
-		now := time.Now()
-		next := time.Date(now.Year(), now.Month(), now.Day(), 3, 0, 0, 0, now.Location())
-		if !next.After(now) {
-			next = next.AddDate(0, 0, 1)
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Until(next)):
-		}
-		if _, err := a.RunAwards(ctx, nil); err != nil {
-			log.Error("daily awards run failed", slog.Any("err", err))
-		} else {
-			log.Info("daily award drafts refreshed")
-		}
-	}
 }

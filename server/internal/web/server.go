@@ -68,7 +68,6 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/competitions/{id}/register", s.user(s.register))
 	mux.HandleFunc("GET /api/exhibits", s.user(s.exhibits))
 	mux.HandleFunc("GET /api/exhibits/{slug}", s.user(s.exhibit))
-	mux.HandleFunc("PUT /api/vote", s.user(s.vote))
 	mux.HandleFunc("POST /api/scan", s.user(s.scan))
 	mux.HandleFunc("GET /api/leaderboard", s.user(s.leaderboard))
 
@@ -96,15 +95,14 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/admin/entries/{id}", s.staff(s.adminDeleteEntry))
 	mux.HandleFunc("PUT /api/admin/entries/{id}", s.staff(s.adminUpdateEntry))
 	mux.HandleFunc("GET /api/admin/awards", s.staff(s.adminAwards))
-	mux.HandleFunc("POST /api/admin/awards/judge-score", s.staff(s.adminJudgeScore))
-	mux.HandleFunc("POST /api/admin/awards/run", s.staff(s.adminRunAwards))
-	mux.HandleFunc("POST /api/admin/awards/veto", s.staff(s.adminVeto))
-	mux.HandleFunc("POST /api/admin/awards/publish", s.staff(s.adminPublish))
+	mux.HandleFunc("POST /api/admin/awards", s.staff(s.adminAddAwards))
+	mux.HandleFunc("PUT /api/admin/awards/{id}", s.staff(s.adminUpdateAward))
+	mux.HandleFunc("DELETE /api/admin/awards/{id}", s.staff(s.adminDeleteAward))
+	mux.HandleFunc("POST /api/admin/awards/publish", s.staff(s.adminPublishAwards))
 	mux.HandleFunc("POST /api/admin/roster", s.staff(s.adminRoster))
 	mux.HandleFunc("POST /api/admin/users/role", s.admin(s.adminSetRole))
 
 	// optional external scheduler (the server also runs the daily job itself)
-	mux.HandleFunc("POST /api/cron/awards", s.cronAwards)
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) { fail(w, http.StatusNotFound, "not_found", "not found") })
 	mux.HandleFunc("/", s.serveUI)

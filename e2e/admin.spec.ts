@@ -92,7 +92,7 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
   await page.fill('input[name="title"]', "Wave Tank");
   await page.fill('input[name="summary"]', "Ripples and interference");
   await page.fill('textarea[name="bodyMd"]', "## How it works\nWaves add up.");
-  await page.fill('input[name="owners"]', "student@demo.school");
+  if (!GO) await page.fill('input[name="owners"]', "student@demo.school"); // Go: awards are chosen by teachers, there is no creators field
   await page.getByRole("button", { name: "Save exhibit" }).click();
   await expect(page.getByText("Wave Tank").first()).toBeVisible();
   await expect(page.locator("code", { hasText: "/c/exhibit." }).first()).toBeVisible();
@@ -126,18 +126,21 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
   await student.goto("/");
   await expect(student.getByText(GO ? /finished · rank 1/ : /Physics Quiz · finished · rank 1/)).toBeVisible();
 
-  // Awards: judge score, compute drafts, veto with reason
-  await page.goto("/admin/awards");
-  const scoreForm = page.locator("form", { hasText: "Wave Tank" });
-  await scoreForm.locator('input[name="score"]').fill("88");
-  await clickAndSave(page, scoreForm.getByRole("button", { name: "Score" }));
-  await clickAndSave(page, page.getByRole("button", { name: "Compute drafts" }));
-  await expect(page.getByText("Most Creative").first()).toBeVisible();
-  await shot("awards-drafts");
-  const creative = page.locator("div", { hasText: /^Most Creative/ }).locator("form", { hasText: "Demo Student" }).first();
-  await creative.locator('input[name="reason"]').fill("ineligible");
-  await clickAndSave(page, creative.getByRole("button", { name: "Remove" }));
-  await expect(page.locator("div", { hasText: /^Most Creative/ })).toHaveCount(0);
+  // Awards: judge score, compute drafts, veto with reason (the Go server has manual awards instead: e2e/awards.spec.ts)
+  if (!GO) {
+    await page.goto("/admin/awards");
+    const scoreForm = page.locator("form", { hasText: "Wave Tank" });
+    await scoreForm.locator('input[name="score"]').fill("88");
+    await clickAndSave(page, scoreForm.getByRole("button", { name: "Score" }));
+    await clickAndSave(page, page.getByRole("button", { name: "Compute drafts" }));
+    await expect(page.getByText("Most Creative").first()).toBeVisible();
+    await shot("awards-drafts");
+    const creative = page.locator("div", { hasText: /^Most Creative/ }).locator("form", { hasText: "Demo Student" }).first();
+    await creative.locator('input[name="reason"]').fill("ineligible");
+    await clickAndSave(page, creative.getByRole("button", { name: "Remove" }));
+    await expect(page.locator("div", { hasText: /^Most Creative/ })).toHaveCount(0);
+
+  }
 
   // Roster import issues working codes
   await page.goto("/admin/roster");

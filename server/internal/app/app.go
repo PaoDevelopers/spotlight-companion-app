@@ -1,4 +1,4 @@
-// Package app holds the business rules: check-in, competitions, exhibits, votes, awards and accounts.
+// Package app holds the business rules: check-in, competitions, exhibits, awards and accounts.
 // It is a port of the TypeScript lib/services/*. HTTP lives in internal/web.
 package app
 
@@ -32,14 +32,13 @@ func New(d *db.DB, cfg *config.Config) *App {
 
 // Errors the HTTP layer turns into friendly messages.
 var (
-	ErrNotFound   = errors.New("not found")
-	ErrClosed     = errors.New("check-in is not open for this event")
-	ErrFull       = errors.New("this event is full")
-	ErrNoSignup   = errors.New("sign-up is not open for this event")
-	ErrBadToken   = errors.New("invalid or expired code")
-	ErrOwnExhibit = errors.New("you can't vote for your own project")
-	ErrInvalid    = errors.New("invalid input")
-	ErrForbidden  = errors.New("not allowed")
+	ErrNotFound  = errors.New("not found")
+	ErrClosed    = errors.New("check-in is not open for this event")
+	ErrFull      = errors.New("this event is full")
+	ErrNoSignup  = errors.New("sign-up is not open for this event")
+	ErrBadToken  = errors.New("invalid or expired code")
+	ErrInvalid   = errors.New("invalid input")
+	ErrForbidden = errors.New("not allowed")
 )
 
 // tx runs fn in a write transaction (the write pool has one connection and takes the lock up front,

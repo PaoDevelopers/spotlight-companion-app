@@ -26,7 +26,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request, u app.User) {
 		s.serverError(w, r, err)
 		return
 	}
-	awards, err := s.app.AwardResults(ctx, true, u.ID)
+	awards, err := s.app.MyAwards(ctx, u.ID)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -162,31 +162,12 @@ func (s *Server) exhibit(w http.ResponseWriter, r *http.Request, u app.User) {
 		s.appError(w, r, err)
 		return
 	}
-	voted, err := s.app.MyVote(r.Context(), u.ID)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
 	seen, err := s.app.VisitedExhibitIDs(r.Context(), u.ID)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"exhibit": x, "votedForThis": voted == x.ID, "visited": seen[x.ID]})
-}
-
-func (s *Server) vote(w http.ResponseWriter, r *http.Request, u app.User) {
-	var in struct {
-		ExhibitID int64 `json:"exhibitId"`
-	}
-	if !readJSON(w, r, &in) {
-		return
-	}
-	if err := s.app.CastVote(r.Context(), u.ID, in.ExhibitID); err != nil {
-		s.appError(w, r, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, map[string]any{"exhibit": x, "visited": seen[x.ID]})
 }
 
 type scanResponse struct {
@@ -280,7 +261,12 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request, u app.User)
 	if month == nil {
 		month = []app.MonthRow{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"month": month, "competitions": boards})
+	awards, err := s.app.PublishedAwardGroups(ctx)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"month": month, "competitions": boards, "awards": awards})
 }
 
 func (s *Server) myCheckins(w http.ResponseWriter, r *http.Request, u app.User) {

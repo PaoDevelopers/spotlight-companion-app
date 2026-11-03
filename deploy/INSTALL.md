@@ -146,10 +146,12 @@ sudo rm -f /var/lib/spotlight/spotlight.db-wal /var/lib/spotlight/spotlight.db-s
 sudo systemctl start spotlight
 ```
 
-## 9. Awards at the end of the month
+## 9. Awards
 
-Award drafts refresh every night at 03:00 server time. A teacher still reviews them in *Teacher portal → Awards* (remove
-anyone ineligible, with a reason) and presses **Publish**. Published prizes are final and are never changed by later runs.
+Awards are chosen by teachers; the server calculates nothing and runs no nightly job. In *Teacher portal → Awards* a teacher gives an
+award (a title, one or more students, an optional reason). New awards are drafts that only teachers can see. **Publish** shows each
+student their award and reason on their Home page and lists the winners on the Board. Awards can be edited, hidden or removed at any time,
+and every change is recorded in the audit log.
 
 ## 10. When something is wrong
 

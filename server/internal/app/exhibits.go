@@ -20,7 +20,6 @@ type Exhibit struct {
 
 type ExhibitInput struct {
 	Slug, Title, Subject, Summary, BodyMD, ImageURL string
-	OwnerEmails                                     []string
 }
 
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
@@ -81,8 +80,7 @@ func (a *App) VisitedExhibitIDs(ctx context.Context, userID int64) (map[int64]bo
 	return out, rows.Err()
 }
 
-// SaveExhibit creates the exhibit, or updates it if the slug already exists. If creator emails are given
-// they replace the current creators; unknown emails are ignored.
+// SaveExhibit creates the exhibit, or updates it if the slug already exists.
 func (a *App) SaveExhibit(ctx context.Context, in ExhibitInput) (Exhibit, error) {
 	title := strings.TrimSpace(in.Title)
 	slug := Slugify(firstNonEmpty(in.Slug, title))
@@ -97,17 +95,6 @@ func (a *App) SaveExhibit(ctx context.Context, in ExhibitInput) (Exhibit, error)
 			RETURNING id`, slug, title, in.Subject, in.Summary, in.BodyMD, strings.TrimSpace(in.ImageURL)).Scan(&id)
 		if err != nil {
 			return err
-		}
-		if len(in.OwnerEmails) == 0 {
-			return nil
-		}
-		if _, err := t.ExecContext(ctx, `DELETE FROM exhibit_owners WHERE exhibit_id = ?`, id); err != nil {
-			return err
-		}
-		for _, e := range in.OwnerEmails {
-			if _, err := t.ExecContext(ctx, `INSERT INTO exhibit_owners (exhibit_id, user_id) SELECT ?, id FROM users WHERE email = ? ON CONFLICT DO NOTHING`, id, strings.ToLower(strings.TrimSpace(e))); err != nil {
-				return err
-			}
 		}
 		return nil
 	})
@@ -127,7 +114,7 @@ func firstNonEmpty(vs ...string) string {
 	return ""
 }
 
-// DeleteExhibit removes an exhibit with its visits, votes and scores (they cascade). Published prizes stay.
+// DeleteExhibit removes an exhibit with its visits (they cascade).
 func (a *App) DeleteExhibit(ctx context.Context, id int64) error {
 	res, err := a.DB.Write.ExecContext(ctx, `DELETE FROM exhibits WHERE id = ?`, id)
 	if err != nil {

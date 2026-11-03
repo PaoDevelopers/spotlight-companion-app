@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./helpers";
-import { ORIGIN, tokenPath } from "./env";
+import { GO, ORIGIN, tokenPath } from "./env";
 
 // Runs first on purpose: specs share one in-memory DB and this one expects a first-time check-in.
 
@@ -33,10 +33,12 @@ test("teacher shows QR, student checks in, awards publish", async ({ page, brows
   // Teacher sees the attendee, then runs and publishes awards.
   await page.goto("/admin/events/1");
   await expect(page.getByText("Demo Student")).toBeVisible();
-  await page.goto("/admin/awards");
-  await page.click('button:has-text("Compute drafts")');
-  await expect(page.getByText("Most Participation").first()).toBeVisible();
-  await page.click('button:has-text("Publish to students")');
-  await student.goto("/");
-  await expect(student.getByText("Most Participation: #1")).toBeVisible();
+  if (!GO) { // the Go server has teacher-chosen awards instead of computed ones: e2e/awards.spec.ts
+    await page.goto("/admin/awards");
+    await page.click('button:has-text("Compute drafts")');
+    await expect(page.getByText("Most Participation").first()).toBeVisible();
+    await page.click('button:has-text("Publish to students")');
+    await student.goto("/");
+    await expect(student.getByText("Most Participation: #1")).toBeVisible();
+  }
 });

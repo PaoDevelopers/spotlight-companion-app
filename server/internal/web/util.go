@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -71,6 +72,9 @@ func pathID(w http.ResponseWriter, r *http.Request, name string) (int64, bool) {
 
 // serverError logs the real cause and tells the client nothing about it.
 func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, context.Canceled) {
+		return // the browser went away (closed the tab, moved on): nobody is waiting for an answer, and it is not a fault
+	}
 	s.log.Error("request failed", slog.String("method", r.Method), slog.String("path", r.URL.Path), slog.Any("err", err))
 	fail(w, http.StatusInternalServerError, "internal", "something went wrong")
 }
@@ -82,8 +86,6 @@ func (s *Server) appError(w http.ResponseWriter, r *http.Request, err error) {
 		fail(w, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, app.ErrInvalid):
 		fail(w, http.StatusUnprocessableEntity, "invalid", "please check the form and try again")
-	case errors.Is(err, app.ErrOwnExhibit):
-		fail(w, http.StatusConflict, "own_exhibit", err.Error())
 	case errors.Is(err, app.ErrForbidden):
 		fail(w, http.StatusForbidden, "forbidden", err.Error())
 	case errors.Is(err, app.ErrBadToken):

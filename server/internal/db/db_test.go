@@ -59,8 +59,9 @@ func TestConstraints(t *testing.T) {
 		{"event ends before it starts", `INSERT INTO events (title, subject, starts_at, ends_at) VALUES ('E', 'cs', 5, 5)`},
 		{"zero capacity", `INSERT INTO events (title, subject, starts_at, ends_at, capacity) VALUES ('E', 'cs', 1, 2, 0)`},
 		{"check-in for a missing user", `INSERT INTO checkins (event_id, user_id, method) VALUES (1, 99, 'qr')`},
-		{"score above 100", `INSERT INTO exhibits (slug, title, subject) VALUES ('x','X','cs'); INSERT INTO judge_scores (category, exhibit_id, judge_id, score) VALUES ('c', 1, 1, 101)`},
-		{"invalid json", `INSERT INTO awards (key, title, config) VALUES ('k', 'K', 'not json')`},
+		{"award for a missing student", `INSERT INTO student_awards (title, user_id) VALUES ('Best', 99)`},
+		{"award published flag out of range", `INSERT INTO users (id, email, name) VALUES (50, 'z@x', 'Z'); INSERT INTO student_awards (title, user_id, published) VALUES ('Best', 50, 2)`},
+		{"invalid json in the audit log", `INSERT INTO audit_log (action, detail) VALUES ('x', 'not json')`},
 	}
 	for _, c := range cases {
 		if _, err := d.Write.Exec(c.query); err == nil {
@@ -181,5 +182,53 @@ func TestChemistryMigrationKeepsDataAndChildren(t *testing.T) {
 	d.Read.QueryRow(`SELECT COUNT(*) FROM checkins`).Scan(&n)
 	if n != 0 {
 		t.Errorf("checkins should cascade-delete with the event, %d left", n)
+	}
+}
+
+// Moving to teacher-chosen awards drops the tables that computed them; it must work on a database that used them.
+func TestManualAwardsMigrationOnUsedDatabase(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "old.db")
+	d, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// recreate the state before 0006: the old tables, with rows in them
+	for _, q := range []string{
+		`DELETE FROM schema_migrations WHERE version = '0006_manual_awards.sql'`,
+		`DROP TABLE student_awards`,
+		`CREATE TABLE awards (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL UNIQUE, title TEXT NOT NULL, config TEXT NOT NULL DEFAULT '{}')`,
+		`CREATE TABLE award_results (id INTEGER PRIMARY KEY AUTOINCREMENT, award_id INTEGER NOT NULL REFERENCES awards(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, rank INTEGER NOT NULL, metrics TEXT NOT NULL DEFAULT '{}', published INTEGER NOT NULL DEFAULT 0)`,
+		`CREATE TABLE votes (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, exhibit_id INTEGER NOT NULL REFERENCES exhibits(id) ON DELETE CASCADE, voter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE)`,
+		`CREATE TABLE judge_scores (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, exhibit_id INTEGER NOT NULL REFERENCES exhibits(id) ON DELETE CASCADE, judge_id INTEGER NOT NULL REFERENCES users(id), score INTEGER NOT NULL)`,
+		`CREATE TABLE exhibit_owners (exhibit_id INTEGER NOT NULL REFERENCES exhibits(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE)`,
+		`INSERT INTO users (id, email, name) VALUES (1, 'a@x', 'A')`,
+		`INSERT INTO exhibits (id, slug, title, subject) VALUES (1, 'x', 'X', 'cs')`,
+		`INSERT INTO awards (id, key, title) VALUES (1, 'creative', 'Most Creative')`,
+		`INSERT INTO award_results (award_id, user_id, rank) VALUES (1, 1, 1)`,
+		`INSERT INTO votes (category, exhibit_id, voter_id) VALUES ('c', 1, 1)`,
+		`INSERT INTO judge_scores (category, exhibit_id, judge_id, score) VALUES ('c', 1, 1, 80)`,
+		`INSERT INTO exhibit_owners (exhibit_id, user_id) VALUES (1, 1)`,
+	} {
+		mustExec(t, d, q)
+	}
+	d.Close()
+	d, err = Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	for _, gone := range []string{"awards", "award_results", "votes", "judge_scores", "exhibit_owners"} {
+		var n int
+		d.Read.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, gone).Scan(&n)
+		if n != 0 {
+			t.Errorf("table %s should be dropped", gone)
+		}
+	}
+	mustExec(t, d, `INSERT INTO student_awards (title, user_id, reason) VALUES ('Best', 1, 'why')`)
+	var users, exhibits int
+	d.Read.QueryRow(`SELECT (SELECT COUNT(*) FROM users), (SELECT COUNT(*) FROM exhibits)`).Scan(&users, &exhibits)
+	if users != 1 || exhibits != 1 {
+		t.Errorf("users and exhibits must be untouched: %d %d", users, exhibits)
 	}
 }

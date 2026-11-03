@@ -19,9 +19,8 @@ interface Draft {
   imageUrl: string;
   summary: string;
   bodyMd: string;
-  owners: string;
 }
-const EMPTY: Draft = { title: "", slug: "", subject: "physics", imageUrl: "", summary: "", bodyMd: "", owners: "" };
+const EMPTY: Draft = { title: "", slug: "", subject: "physics", imageUrl: "", summary: "", bodyMd: "" };
 
 export default function AdminExhibits() {
   const qc = useQueryClient();
@@ -48,11 +47,10 @@ export default function AdminExhibits() {
   });
   function submit(e: FormEvent) {
     e.preventDefault();
-    save.mutate({ ...d, owners: d.owners.split(/[,\s]+/).filter(Boolean) });
+    save.mutate(d);
   }
   function edit(x: AdminExhibit) {
-    // creators aren't returned by the list, so leaving the field empty keeps them as they are
-    setD({ title: x.title, slug: x.slug, subject: x.subject, imageUrl: x.imageUrl ?? "", summary: x.summary, bodyMd: x.bodyMd, owners: "" });
+    setD({ title: x.title, slug: x.slug, subject: x.subject, imageUrl: x.imageUrl ?? "", summary: x.summary, bodyMd: x.bodyMd });
     setEditing(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -73,7 +71,6 @@ export default function AdminExhibits() {
         <div className="sm:col-span-2">
           <MarkdownEditor name="bodyMd" value={d.bodyMd} onChange={(v) => set("bodyMd", v)} rows={8} placeholder={"## What you're seeing\n## How it works\n## Try this"} />
         </div>
-        <Input name="owners" placeholder="Student creators' emails, comma separated (for Most Creative)" value={d.owners} onChange={(e) => set("owners", e.target.value)} className="sm:col-span-2" />
         <FormError error={save.error} />
         <div className="flex gap-2 sm:col-span-2">
           <SaveButton pending={save.isPending}>Save exhibit</SaveButton>

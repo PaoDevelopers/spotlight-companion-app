@@ -187,3 +187,40 @@ func TestCompetitionToggleOnEventAndEntriesByHand(t *testing.T) {
 		t.Fatalf("competition should be gone: %+v", after)
 	}
 }
+
+func TestAwardsOverHTTP(t *testing.T) {
+	_, teacher, student := seeded(t)
+	hits := decode[[]struct{ ID int64 }](t, teacher.mustStatus(200, "GET", "/api/admin/students?q=student", nil))
+	body := map[string]any{"title": "Best Presentation", "reason": "Explained the maths clearly", "userIds": []int64{hits[0].ID}}
+
+	student.mustStatus(403, "POST", "/api/admin/awards", body)
+	student.mustStatus(403, "POST", "/api/admin/awards/publish", map[string]any{"published": true})
+	teacher.mustStatus(422, "POST", "/api/admin/awards", map[string]any{"title": "", "userIds": []int64{hits[0].ID}})
+	teacher.mustStatus(201, "POST", "/api/admin/awards", body)
+
+	type home struct {
+		Awards []struct{ Title, Reason string }
+	}
+	if h := decode[home](t, student.mustStatus(200, "GET", "/api/home", nil)); len(h.Awards) != 0 {
+		t.Fatalf("a draft reached the student: %+v", h)
+	}
+	list := decode[struct{ Awards []struct{ ID int64 } }](t, teacher.mustStatus(200, "GET", "/api/admin/awards", nil))
+	if len(list.Awards) != 1 {
+		t.Fatalf("%+v", list)
+	}
+	teacher.mustStatus(200, "POST", "/api/admin/awards/publish", map[string]any{"published": true})
+	h := decode[home](t, student.mustStatus(200, "GET", "/api/home", nil))
+	if len(h.Awards) != 1 || h.Awards[0].Title != "Best Presentation" || h.Awards[0].Reason != "Explained the maths clearly" {
+		t.Fatalf("student's award: %+v", h)
+	}
+	board := string(student.mustStatus(200, "GET", "/api/leaderboard", nil))
+	if !strings.Contains(board, "Best Presentation") || strings.Contains(board, "Demo Student") || strings.Contains(board, "Explained the maths") {
+		t.Fatalf("public list must show the title but not a private student's name or reason: %s", board)
+	}
+	teacher.mustStatus(204, "PUT", "/api/admin/awards/"+itoa(list.Awards[0].ID), map[string]any{"title": "Best Talk", "reason": ""})
+	teacher.mustStatus(204, "DELETE", "/api/admin/awards/"+itoa(list.Awards[0].ID), nil)
+	teacher.mustStatus(404, "DELETE", "/api/admin/awards/"+itoa(list.Awards[0].ID), nil)
+	if h := decode[home](t, student.mustStatus(200, "GET", "/api/home", nil)); len(h.Awards) != 0 {
+		t.Fatalf("deleted award still shown: %+v", h)
+	}
+}

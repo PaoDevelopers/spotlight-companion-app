@@ -36,6 +36,3 @@ ADMIN_EMAILS=CHANGE-ME-your-school-email
 # Serve HTTPS directly (certificate chain and key, readable by the spotlight user). Leave unset behind a proxy.
 # TLS_CERT=/etc/spotlight/tls/fullchain.pem
 # TLS_KEY=/etc/spotlight/tls/privkey.pem
-
-# Optional: lets an external scheduler call POST /api/cron/awards (the server already refreshes award drafts nightly).
-# CRON_SECRET=CHANGE-ME-openssl-rand-hex-32

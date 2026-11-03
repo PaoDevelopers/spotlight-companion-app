@@ -37,7 +37,8 @@ needed are in `docs/IT-REQUEST.md`.
 |---|---|---|
 | Name, school email | the Microsoft sign-in token | nothing else is requested |
 | Class | the roster the school gives us | optional |
-| Check-ins, exhibit visits, competition entries and results, votes, prize results | created by using the app | |
+| Check-ins, exhibit visits, competition entries and results | created by using the app | |
+| Awards (title, student, optional reason) | chosen and typed in by teachers | shown to the student; the public list follows the same name-privacy switch as the leaderboard |
 | Audit log | actions by teachers (role changes, prize decisions) | |
 
 No passwords. Students choose whether their name appears on public leaderboards; the default is hidden ("Student, 10A").

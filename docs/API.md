@@ -60,9 +60,9 @@ sign-in; other domains are refused.
 ```json
 {"stats":{"attended":3,"visited":1,"totalExhibits":2},
  "upcoming":[Event],"competitions":[{"entryId":1,"competition":"Hackathon","event":"Hackathon","status":"finished","score":95,"rank":1}],
- "awards":[AwardResult]}
+ "awards":[{"id":1,"title":"Most Creative Exhibit","reason":"Built a working machine"}]}
 ```
-`awards` are the student's own **published** prizes.
+`awards` are the awards a teacher gave this student and **published** (`reason` may be empty).
 
 `GET /api/events?subject=physics|cs` → `[Event]` ordered by start (a subject filter also includes `both`).
 `Event` = `{id,title,subject,description,venue|null,startsAt,endsAt,capacity|null}`.
@@ -76,11 +76,8 @@ check-in: walk-ins can't take it. A student without a device is found by the tea
 `POST /api/competitions/{id}/register` `{"team": ""}` → 204. Registering twice is harmless.
 
 `GET /api/exhibits` → `[{id,slug,title,subject,summary,bodyMd,imageUrl|null,visited}]`.
-`GET /api/exhibits/{slug}` → `{"exhibit":Exhibit,"votedForThis":bool,"visited":bool}`. `bodyMd` is Markdown:
+`GET /api/exhibits/{slug}` → `{"exhibit":Exhibit,"visited":bool}`. `bodyMd` is Markdown:
 render it with a Markdown component that does **not** allow raw HTML.
-
-`PUT /api/vote` `{"exhibitId": 1}` → 204. One vote per student; voting again moves it. Voting for your own project is
-`409 own_exhibit`.
 
 `GET /api/leaderboard` → `{"month":[{rank,label,points}],"competitions":[{id,name,event,rows:[{id,label,status,score|null,rank|null}]}]}`.
 `label` is already privacy-safe: a real name only if that student opted in, otherwise `Student, 10A`.
@@ -132,11 +129,10 @@ Check-in codes contain dots, dashes and underscores; do not treat them as file n
 
 **Exhibits**
 - `GET /api/admin/exhibits` → `[Exhibit + tagToken + tagUrl]` (`tagUrl` = permanent link for the exhibit's QR/NFC tag).
-- `POST /api/admin/exhibits` `{title,slug,subject,summary,bodyMd,imageUrl,owners:[email]}` → `Exhibit + tag`. Saving with an
-  existing slug updates it; a non-empty `owners` list replaces the creators (they receive "Most Creative"). `imageUrl` must
-  be `https://...` or a `/path`.
+- `POST /api/admin/exhibits` `{title,slug,subject,summary,bodyMd,imageUrl}` → `Exhibit + tag`. Saving with an
+  existing slug updates it. `imageUrl` must be `https://...` or a `/path`.
 
-- `DELETE /api/admin/exhibits/{id}` → 204 (its visits, votes and scores go with it; its printed QR stops working). Unknown id → 404.
+- `DELETE /api/admin/exhibits/{id}` → 204 (its visits go with it; its printed QR stops working). Unknown id → 404.
 
 **Competitions**
 
@@ -158,13 +154,20 @@ Changing the kind keeps the entries; setting `competition` to `""` deletes the c
   `rows` are individuals (labels respect each student's opt-in). For `team`, `groups` are the teams (best rank, best score, members); for `house`, `groups`
   are all four houses ranked by total points (a house with no points is unranked). `rows` and `groups` are always lists, never null.
 
-**Awards**
-- `GET /api/admin/awards` → `{"exhibits":[{id,title,myScore|null}],"drafts":[AwardResult],"published":[AwardResult],"liveWinners":n}`.
-- `POST /api/admin/awards/judge-score` `{exhibitId, score}` → 204 (0–100; scoring again replaces).
-- `POST /api/admin/awards/run` → 204: computes **drafts** (replaces earlier drafts; awards already published are untouched).
-- `POST /api/admin/awards/veto` `{id, reason}` → 204: removes a draft winner (published results can't be changed: 403).
-- `POST /api/admin/awards/publish` → `{"published": n}`: makes all drafts visible to students.
-  `AwardResult` = `{id,award,key,rank,metrics:{...},userId,name,className,published}`.
+**Awards** (chosen by teachers; nothing is calculated)
+
+An award is a title, a student and an optional reason. Giving one to several students creates one row per student. New awards are
+**drafts** that only teachers see; publishing shows them to the student (on `/api/home`) and lists them on `/api/leaderboard`.
+Every change is written to the audit log. Only students can receive awards.
+
+- `GET /api/admin/awards` → `{"awards":[{id,title,reason,userId,name,className,published}]}` (drafts included, real names).
+- `POST /api/admin/awards` `{title, reason, userIds:[...]}` → 201 `{"created": n}` (title 1–80 characters, reason up to 500, up to 200 students).
+  Giving the same award to the same student again just updates the reason. Invalid → `422 invalid` and nothing is created.
+- `PUT /api/admin/awards/{id}` `{title, reason}` → 204. `DELETE /api/admin/awards/{id}` → 204.
+- `POST /api/admin/awards/publish` `{"ids":[...], "published": true|false}` → `{"changed": n}`. With no `ids`, `published: true` publishes every draft;
+  `published: false` always needs `ids` (hiding "everything" is refused).
+- Public list: `GET /api/leaderboard` also returns `"awards":[{"title","winners":[{"label","reason?"}]}]` (published only). Like the leaderboard, a
+  student's name shows only if they opted in; the reason is included only for those students.
 
 **Roster and roles**
 - `POST /api/admin/roster` `{"csv": "name,email,class\n..."}` → `{"issued":[{name,email,className,code}]}`. The codes are shown
@@ -174,5 +177,3 @@ Changing the kind keeps the entries; setting `competition` to `""` deletes the c
 ## Operations
 
 - `GET /healthz` → `ok` while the process is up. `GET /readyz` → `ready` only if the database answers.
-- `POST /api/cron/awards` with `Authorization: Bearer <CRON_SECRET>` computes draft awards (optional; the server also does
-  this itself every night at 03:00). It is switched off (404) when `CRON_SECRET` is not set.

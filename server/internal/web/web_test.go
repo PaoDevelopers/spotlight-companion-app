@@ -48,7 +48,7 @@ func setup(t *testing.T, mode string) *env {
 	e.ts = httptest.NewServer(nil)
 	t.Cleanup(e.ts.Close)
 	cfg := &config.Config{Secret: secret, PublicURL: e.ts.URL, AuthMode: mode, StaffDomain: "ykpaoschool.cn", StudentDomain: "stu.ykpaoschool.cn",
-		DemoLoginCode: "DEMOCODE", CronSecret: "cron-secret"}
+		DemoLoginCode: "DEMOCODE"}
 	cfg.OIDC = config.OIDC{TenantID: "t", ClientID: "client-1", Authorize: "https://login.example/authorize", Issuer: "https://login.example/v2.0"}
 	e.app = app.New(d, cfg)
 	e.app.Now = func() time.Time { return e.now }
@@ -138,7 +138,7 @@ func TestRolesAndAuthentication(t *testing.T) {
 			t.Errorf("student GET %s = %d, want 403", p, res.StatusCode)
 		}
 	}
-	for _, p := range []string{"/api/admin/awards/publish", "/api/admin/awards/run", "/api/admin/roster"} {
+	for _, p := range []string{"/api/admin/awards/publish", "/api/admin/awards", "/api/admin/roster"} {
 		if res, _ := student.do("POST", p, map[string]string{}, nil); res.StatusCode != 403 {
 			t.Errorf("student POST %s = %d, want 403", p, res.StatusCode)
 		}
@@ -237,7 +237,7 @@ func TestRequestForgeryAndInputRules(t *testing.T) {
 	}
 }
 
-func TestEndToEndCheckInAndAwards(t *testing.T) {
+func TestEndToEndCheckIn(t *testing.T) {
 	e, teacher, student := seeded(t)
 
 	events := decode[[]app.Event](t, student.mustStatus(200, "GET", "/api/events", nil))
@@ -330,19 +330,6 @@ func TestEndToEndCheckInAndAwards(t *testing.T) {
 		t.Fatalf("opted-in name should show: %s", board)
 	}
 
-	// awards: students see nothing until a teacher publishes
-	teacher.mustStatus(204, "POST", "/api/admin/awards/run", nil)
-	home := decode[struct{ Awards []app.AwardResult }](t, student.mustStatus(200, "GET", "/api/home", nil))
-	if len(home.Awards) != 0 {
-		t.Fatal("drafts leaked to the student")
-	}
-	if pub := decode[map[string]int64](t, teacher.mustStatus(200, "POST", "/api/admin/awards/publish", nil)); pub["published"] == 0 {
-		t.Fatalf("%v", pub)
-	}
-	home = decode[struct{ Awards []app.AwardResult }](t, student.mustStatus(200, "GET", "/api/home", nil))
-	if len(home.Awards) == 0 || home.Awards[0].Rank != 1 {
-		t.Fatalf("%+v", home.Awards)
-	}
 	_ = me
 }
 
@@ -354,8 +341,8 @@ type scanResp struct {
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
-func TestCronAwardsAndHealth(t *testing.T) {
-	e, _, _ := seeded(t)
+func TestHealth(t *testing.T) {
+	e := setup(t, "roster")
 	c := e.client()
 	if res, _ := c.do("GET", "/healthz", nil, nil); res.StatusCode != 200 {
 		t.Error("healthz")
@@ -363,18 +350,11 @@ func TestCronAwardsAndHealth(t *testing.T) {
 	if res, _ := c.do("GET", "/readyz", nil, nil); res.StatusCode != 200 {
 		t.Error("readyz")
 	}
-	if res, _ := c.do("POST", "/api/cron/awards", nil, nil); res.StatusCode != 401 {
-		t.Errorf("no secret = %d", res.StatusCode)
-	}
-	if res, _ := c.do("POST", "/api/cron/awards", nil, map[string]string{"Authorization": "Bearer nope"}); res.StatusCode != 401 {
-		t.Errorf("wrong secret = %d", res.StatusCode)
-	}
-	if res, _ := c.do("POST", "/api/cron/awards", nil, map[string]string{"Authorization": "Bearer cron-secret"}); res.StatusCode != 200 {
-		t.Errorf("right secret = %d", res.StatusCode)
-	}
-	e.app.Cfg.CronSecret = ""
-	if res, _ := c.do("POST", "/api/cron/awards", nil, map[string]string{"Authorization": "Bearer "}); res.StatusCode != 404 {
-		t.Errorf("cron disabled should be 404, got %d", res.StatusCode)
+	// the computed-awards machinery is gone
+	for _, p := range []string{"/api/cron/awards", "/api/admin/awards/run", "/api/admin/awards/judge-score", "/api/admin/awards/veto", "/api/vote"} {
+		if res, _ := c.do("POST", p, nil, nil); res.StatusCode != 404 && res.StatusCode != 405 {
+			t.Errorf("%s should not exist, got %d", p, res.StatusCode)
+		}
 	}
 }
 

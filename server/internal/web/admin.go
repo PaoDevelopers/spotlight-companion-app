@@ -259,13 +259,12 @@ func (s *Server) adminExhibits(w http.ResponseWriter, r *http.Request, u app.Use
 
 func (s *Server) adminSaveExhibit(w http.ResponseWriter, r *http.Request, u app.User) {
 	var in struct {
-		Title    string   `json:"title"`
-		Slug     string   `json:"slug"`
-		Subject  string   `json:"subject"`
-		Summary  string   `json:"summary"`
-		BodyMD   string   `json:"bodyMd"`
-		ImageURL string   `json:"imageUrl"`
-		Owners   []string `json:"owners"`
+		Title    string `json:"title"`
+		Slug     string `json:"slug"`
+		Subject  string `json:"subject"`
+		Summary  string `json:"summary"`
+		BodyMD   string `json:"bodyMd"`
+		ImageURL string `json:"imageUrl"`
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -274,7 +273,7 @@ func (s *Server) adminSaveExhibit(w http.ResponseWriter, r *http.Request, u app.
 		s.appError(w, r, app.ErrInvalid) // no javascript: or data: URLs in the image field
 		return
 	}
-	x, err := s.app.SaveExhibit(r.Context(), app.ExhibitInput{Slug: in.Slug, Title: in.Title, Subject: in.Subject, Summary: in.Summary, BodyMD: in.BodyMD, ImageURL: in.ImageURL, OwnerEmails: in.Owners})
+	x, err := s.app.SaveExhibit(r.Context(), app.ExhibitInput{Slug: in.Slug, Title: in.Title, Subject: in.Subject, Summary: in.Summary, BodyMD: in.BodyMD, ImageURL: in.ImageURL})
 	if err != nil {
 		s.appError(w, r, err)
 		return
@@ -376,97 +375,79 @@ func (s *Server) adminUpdateEntry(w http.ResponseWriter, r *http.Request, u app.
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// adminAwards lists every award, drafts included, and the titles used so far (to suggest for the next one).
 func (s *Server) adminAwards(w http.ResponseWriter, r *http.Request, u app.User) {
-	ctx := r.Context()
-	drafts, err := s.app.AwardResults(ctx, false, 0)
+	list, err := s.app.AllAwards(r.Context())
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	published, err := s.app.AwardResults(ctx, true, 0)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	ex, err := s.app.Exhibits(ctx)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	mine, err := s.app.MyJudgeScores(ctx, u.ID)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	preview, err := s.app.AwardPreview(ctx)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	type exh struct {
-		ID      int64  `json:"id"`
-		Title   string `json:"title"`
-		MyScore *int64 `json:"myScore"`
-	}
-	exs := make([]exh, 0, len(ex))
-	for _, x := range ex {
-		e := exh{ID: x.ID, Title: x.Title}
-		if sc, ok := mine[x.ID]; ok {
-			e.MyScore = &sc
-		}
-		exs = append(exs, e)
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"exhibits": exs, "drafts": drafts, "published": published,
-		"liveWinners": len(preview.Participation) + len(preview.Explorer) + len(preview.Creative),
-	})
+	writeJSON(w, http.StatusOK, map[string]any{"awards": list})
 }
 
-func (s *Server) adminJudgeScore(w http.ResponseWriter, r *http.Request, u app.User) {
+func (s *Server) adminAddAwards(w http.ResponseWriter, r *http.Request, u app.User) {
 	var in struct {
-		ExhibitID int64   `json:"exhibitId"`
-		Score     float64 `json:"score"`
+		Title   string  `json:"title"`
+		Reason  string  `json:"reason"`
+		UserIDs []int64 `json:"userIds"`
 	}
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if err := s.app.ScoreExhibit(r.Context(), u.ID, in.ExhibitID, in.Score); err != nil {
+	n, err := s.app.AddAwards(r.Context(), u.ID, in.Title, in.Reason, in.UserIDs)
+	if err != nil {
 		s.appError(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusCreated, map[string]any{"created": n})
 }
 
-func (s *Server) adminRunAwards(w http.ResponseWriter, r *http.Request, u app.User) {
-	if _, err := s.app.RunAwards(r.Context(), &u.ID); err != nil {
-		s.serverError(w, r, err)
+func (s *Server) adminUpdateAward(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) adminVeto(w http.ResponseWriter, r *http.Request, u app.User) {
 	var in struct {
-		ID     int64  `json:"id"`
+		Title  string `json:"title"`
 		Reason string `json:"reason"`
 	}
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if err := s.app.RemoveDraftResult(r.Context(), in.ID, u.ID, strings.TrimSpace(in.Reason)); err != nil {
+	if err := s.app.UpdateAward(r.Context(), u.ID, id, in.Title, in.Reason); err != nil {
 		s.appError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) adminPublish(w http.ResponseWriter, r *http.Request, u app.User) {
-	n, err := s.app.PublishAwards(r.Context(), u.ID)
-	if err != nil {
-		s.serverError(w, r, err)
+func (s *Server) adminDeleteAward(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]int64{"published": n})
+	if err := s.app.DeleteAward(r.Context(), u.ID, id); err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// adminPublishAwards shows awards to students (or hides them again). Without ids it publishes every draft.
+func (s *Server) adminPublishAwards(w http.ResponseWriter, r *http.Request, u app.User) {
+	var in struct {
+		IDs       []int64 `json:"ids"`
+		Published bool    `json:"published"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	n, err := s.app.SetAwardsPublished(r.Context(), u.ID, in.IDs, in.Published)
+	if err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"changed": n})
 }
 
 func (s *Server) adminRoster(w http.ResponseWriter, r *http.Request, u app.User) {
@@ -507,27 +488,6 @@ func (s *Server) adminSetRole(w http.ResponseWriter, r *http.Request, u app.User
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// cronAwards lets an external scheduler (cron, systemd timer) compute draft awards. The server also does
-// this itself every day, so this is optional; it stays off unless CRON_SECRET is set.
-func (s *Server) cronAwards(w http.ResponseWriter, r *http.Request) {
-	want := s.app.Cfg.CronSecret
-	if want == "" {
-		http.NotFound(w, r)
-		return
-	}
-	if !constantEq(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "), want) {
-		fail(w, http.StatusUnauthorized, "unauthorized", "unauthorized")
-		return
-	}
-	res, err := s.app.RunAwards(r.Context(), nil)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "winners": map[string]int{
-		"participation": len(res.Participation), "explorer": len(res.Explorer), "creative": len(res.Creative)}})
 }
 
 // adminSignup signs a student up on their behalf (for example one who has no device), by id or email.

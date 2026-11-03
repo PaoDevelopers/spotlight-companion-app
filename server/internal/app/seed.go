@@ -20,9 +20,6 @@ func (a *App) SeedDemo(ctx context.Context) (map[string]string, error) {
 	}
 	codes := map[string]string{}
 	err := a.tx(ctx, func(t *sql.Tx) error {
-		if err := ensureAwards(ctx, t); err != nil {
-			return err
-		}
 		for _, u := range []struct{ name, email, role, class string }{
 			{"Ms Teacher", "teacher@demo.school", "teacher", ""},
 			{"Demo Student", "student@demo.school", "student", "10A"},

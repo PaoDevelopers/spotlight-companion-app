@@ -333,7 +333,7 @@ func (a *App) CompetitionBoard(ctx context.Context, c Competition, eventTitle st
 	case KindTeam:
 		byTeam := map[string]*BoardGroup{}
 		var order []string
-		loose := []BoardRow{} // never nil: it is sent to the browser as a list
+		loose := []BoardRow{}    // never nil: it is sent to the browser as a list
 		for _, r := range rows { // rows are already best rank first
 			if r.Team == nil || *r.Team == "" {
 				loose = append(loose, r)

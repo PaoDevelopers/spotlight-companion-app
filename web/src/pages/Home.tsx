@@ -5,13 +5,13 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { kindLabel } from "@/lib/competition";
-import type { AwardResult, Event, MyCompetition } from "@/lib/types";
+import type { Event, MyAward, MyCompetition } from "@/lib/types";
 
 interface HomeData {
   stats: { attended: number; visited: number; totalExhibits: number };
   upcoming: Event[];
   competitions: MyCompetition[];
-  awards: AwardResult[];
+  awards: MyAward[];
 }
 
 export default function Home() {
@@ -22,8 +22,9 @@ export default function Home() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Hi {me?.name.split(" ")[0]}</h1>
       {d?.awards.map((a) => (
-        <div key={a.id} className="rounded-lg bg-amber-100 p-4 font-semibold">
-          🏆 {a.award}: #{a.rank}
+        <div key={a.id} className="rounded-lg bg-amber-100 p-4">
+          <div className="font-semibold">🏆 {a.title}</div>
+          {a.reason && <p className="mt-1 text-sm">{a.reason}</p>}
         </div>
       ))}
       {d && (

@@ -31,24 +31,6 @@ func (a *App) Stats(ctx context.Context) (Stats, error) {
 	return s, err
 }
 
-// MyJudgeScores returns the scores this judge has already given, by exhibit id.
-func (a *App) MyJudgeScores(ctx context.Context, judgeID int64) (map[int64]int64, error) {
-	rows, err := a.DB.Read.QueryContext(ctx, `SELECT exhibit_id, score FROM judge_scores WHERE category = ? AND judge_id = ?`, Category, judgeID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[int64]int64{}
-	for rows.Next() {
-		var id, s int64
-		if err := rows.Scan(&id, &s); err != nil {
-			return nil, err
-		}
-		out[id] = s
-	}
-	return out, rows.Err()
-}
-
 // MyRegistration returns the student's entry status for a competition, or "" if not registered.
 func (a *App) MyRegistrations(ctx context.Context, userID int64) (map[int64]string, error) {
 	rows, err := a.DB.Read.QueryContext(ctx, `SELECT competition_id, status FROM competition_entries WHERE user_id = ?`, userID)

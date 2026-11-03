@@ -53,16 +53,22 @@ export interface Exhibit {
   bodyMd: string;
   imageUrl: string | null;
 }
-export interface AwardResult {
+/** An award as the student who received it sees it (published only). */
+export interface MyAward {
   id: number;
-  award: string;
-  key: string;
-  rank: number;
-  metrics: Record<string, number>;
+  title: string;
+  reason: string;
+}
+/** An award as a teacher sees it: one row per student, drafts included. */
+export interface Award extends MyAward {
   userId: number;
   name: string;
   className: string;
   published: boolean;
+}
+export interface AwardGroup {
+  title: string;
+  winners: { label: string; reason?: string }[];
 }
 export interface MyCompetition {
   entryId: number;

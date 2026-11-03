@@ -163,7 +163,7 @@ func TestNFCPassAndExhibitTags(t *testing.T) {
 		t.Errorf("CSV not neutralised: %q", csv)
 	}
 
-	x, err := a.SaveExhibit(ctx, ExhibitInput{Title: "Wave Tank", Subject: "physics", OwnerEmails: []string{"b@x", "ghost@x"}})
+	x, err := a.SaveExhibit(ctx, ExhibitInput{Title: "Wave Tank", Subject: "physics"})
 	if err != nil || x.Slug != "wave-tank" {
 		t.Fatalf("%+v %v", x, err)
 	}
@@ -264,72 +264,6 @@ func TestLeaderboardsRespectOptIn(t *testing.T) {
 		if strings.Contains(m.Label, "Sam") {
 			t.Error("opted-out name leaked")
 		}
-	}
-}
-
-func TestAwardsWorkflow(t *testing.T) {
-	a := newApp(t)
-	e1, e2 := mkEvent(t, a, "E1", nil), mkEvent(t, a, "E2", nil)
-	u1, u2, judge := mkUser(t, a, "A", "a@x", false), mkUser(t, a, "B", "b@x", false), mkUser(t, a, "J", "j@x", false)
-	for _, c := range [][2]int64{{u1.ID, e1.ID}, {u1.ID, e2.ID}, {u2.ID, e1.ID}} {
-		if _, err := a.DB.Write.Exec(`INSERT INTO checkins (event_id, user_id, method, at) VALUES (?, ?, 'qr', ?)`, c[1], c[0], during.Unix()); err != nil {
-			t.Fatal(err)
-		}
-	}
-	x, _ := a.SaveExhibit(ctx, ExhibitInput{Title: "X", Subject: "cs", OwnerEmails: []string{"b@x"}})
-	if err := a.CastVote(ctx, u2.ID, x.ID); !errors.Is(err, ErrOwnExhibit) {
-		t.Fatalf("own exhibit: %v", err)
-	}
-	if err := a.CastVote(ctx, u1.ID, x.ID); err != nil {
-		t.Fatal(err)
-	}
-	if id, _ := a.MyVote(ctx, u1.ID); id != x.ID {
-		t.Fatal("vote not stored")
-	}
-	if err := a.ScoreExhibit(ctx, judge.ID, x.ID, 150); err != nil { // clamps to 100
-		t.Fatal(err)
-	}
-
-	res, err := a.RunAwards(ctx, &judge.ID)
-	if err != nil || res.Participation[0].UserID != u1.ID || res.Creative[0].UserID != u2.ID || res.Creative[0].Metrics["judge"] != 100 {
-		t.Fatalf("%+v %v", res, err)
-	}
-	if pub, _ := a.AwardResults(ctx, true, 0); len(pub) != 0 {
-		t.Fatal("students must see nothing before publishing")
-	}
-	drafts, _ := a.AwardResults(ctx, false, 0)
-	var creative AwardResult
-	for _, d := range drafts {
-		if d.Key == "creative" {
-			creative = d
-		}
-	}
-	if err := a.RemoveDraftResult(ctx, creative.ID, judge.ID, "ineligible"); err != nil {
-		t.Fatal(err)
-	}
-	if n, err := a.PublishAwards(ctx, judge.ID); err != nil || n == 0 {
-		t.Fatalf("published %d, %v", n, err)
-	}
-	before, _ := a.AwardResults(ctx, true, 0)
-	if _, err := a.RunAwards(ctx, &judge.ID); err != nil { // must not change published rows
-		t.Fatal(err)
-	}
-	after, _ := a.AwardResults(ctx, true, 0)
-	if len(before) != len(after) {
-		t.Fatalf("published results changed: %d -> %d", len(before), len(after))
-	}
-	for i := range before {
-		if before[i].ID != after[i].ID || before[i].UserID != after[i].UserID || before[i].Rank != after[i].Rank {
-			t.Fatalf("published row %d changed", i)
-		}
-	}
-	for _, r := range before {
-		if r.Key == "creative" {
-			t.Fatal("the vetoed creative winner must not be published")
-		}
-	}
-	if err := a.RemoveDraftResult(ctx, before[0].ID, judge.ID, "late"); !errors.Is(err, ErrForbidden) {
-		t.Fatalf("published results are final: %v", err)
 	}
 }
 

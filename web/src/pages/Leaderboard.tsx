@@ -2,11 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { kindLabel } from "@/lib/competition";
 import { cn } from "@/lib/utils";
-import type { Board, BoardGroup, BoardRow } from "@/lib/types";
+import type { AwardGroup, Board, BoardGroup, BoardRow } from "@/lib/types";
 
 interface Data {
   month: { rank: number; label: string; points: number }[];
   competitions: Board[];
+  awards: AwardGroup[];
 }
 
 const medal = (rank: number | null) => (rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank ? `${rank}.` : "–");
@@ -64,6 +65,26 @@ export default function Leaderboard() {
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold">Board</h1>
+      {(q.data.awards ?? []).length > 0 && (
+        <section>
+          <h2 className="mb-2 text-lg font-semibold">Awards</h2>
+          <div className="grid gap-2 md:grid-cols-2">
+            {q.data.awards.map((g) => (
+              <div key={g.title} className="rounded-lg bg-amber-100 p-3">
+                <div className="font-semibold">🏆 {g.title}</div>
+                <ul className="mt-1 space-y-1 text-sm">
+                  {g.winners.map((w, i) => (
+                    <li key={i}>
+                      {w.label}
+                      {w.reason && <span className="block text-xs text-muted-foreground">{w.reason}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
         <section>
           <h2 className="mb-1 text-lg font-semibold">Month leaderboard</h2>

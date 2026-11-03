@@ -25,7 +25,12 @@ func mac(secret, message string) string {
 
 // CreateSession returns the cookie value "userID.expiry.signature" (same format as the TypeScript app).
 func CreateSession(secret string, userID, nowMs int64) string {
-	exp := nowMs/1000 + SessionDays*86400
+	return CreateSessionFor(secret, userID, nowMs, SessionDays*86400)
+}
+
+// CreateSessionFor is CreateSession with a chosen lifetime in seconds (used for short "view as a student" sessions).
+func CreateSessionFor(secret string, userID, nowMs, ttlSeconds int64) string {
+	exp := nowMs/1000 + ttlSeconds
 	body := strconv.FormatInt(userID, 10) + "." + strconv.FormatInt(exp, 10)
 	return body + "." + mac(secret, body)
 }

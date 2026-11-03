@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -174,6 +175,10 @@ type scanResponse struct {
 	OK      bool   `json:"ok"`
 	Message string `json:"message"`
 	Href    string `json:"href,omitempty"`
+	// When check-in is closed, why and for which event, so the app can say when it opens in the viewer's own time.
+	Reason  string `json:"reason,omitempty"` // "early" (not open yet) or "late" (already over)
+	Event   string `json:"event,omitempty"`
+	OpensAt string `json:"opensAt,omitempty"`
 }
 
 // extractCode accepts either a bare code or the full /c/<code> link that a QR code or NFC tag holds.
@@ -224,7 +229,7 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request, u app.User) {
 	case errors.Is(err, app.ErrNotFound):
 		writeJSON(w, http.StatusOK, scanResponse{Message: "Event not found."})
 	case errors.Is(err, app.ErrClosed):
-		writeJSON(w, http.StatusOK, scanResponse{Message: "Check-in isn't open for this event."})
+		writeJSON(w, http.StatusOK, s.closedResponse(ctx, res.EventID))
 	case errors.Is(err, app.ErrFull):
 		writeJSON(w, http.StatusOK, scanResponse{Message: "This event is full."})
 	default:
@@ -292,4 +297,23 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request, u app.User) {
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	w.Write(data)
+}
+
+// closedResponse explains why check-in is closed: not yet open (and when it opens), or the event is over.
+func (s *Server) closedResponse(ctx context.Context, eventID int64) scanResponse {
+	out := scanResponse{Message: "Check-in isn't open for this event."}
+	ev, err := s.app.Event(ctx, eventID)
+	if err != nil {
+		return out
+	}
+	opens := app.CheckinOpensAt(ev)
+	out.Event, out.OpensAt = ev.Title, app.Time(opens)
+	if s.app.Now().Before(opens) {
+		out.Reason = "early"
+		out.Message = "Check-in for " + ev.Title + " isn't open yet."
+	} else {
+		out.Reason = "late"
+		out.Message = ev.Title + " has finished, so check-in is closed."
+	}
+	return out
 }

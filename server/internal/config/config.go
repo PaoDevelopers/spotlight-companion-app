@@ -21,6 +21,7 @@ type Config struct {
 
 	StaffDomain, StudentDomain string
 	AdminEmails                []string
+	ImpersonateEmails          []string // admins allowed to "view the app as a student" (empty = the feature is off)
 
 	TLSCert, TLSKey string // optional; leave empty behind a TLS-terminating proxy
 
@@ -81,6 +82,11 @@ func Load(path string) (*Config, error) {
 	for _, e := range strings.Split(get("ADMIN_EMAILS", ""), ",") {
 		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
 			c.AdminEmails = append(c.AdminEmails, e)
+		}
+	}
+	for _, e := range strings.Split(get("IMPERSONATE_EMAILS", ""), ",") {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
+			c.ImpersonateEmails = append(c.ImpersonateEmails, e)
 		}
 	}
 	c.OIDC.TenantID = get("OIDC_TENANT_ID", "")

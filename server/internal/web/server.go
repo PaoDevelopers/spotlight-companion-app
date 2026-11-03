@@ -103,6 +103,8 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/roster", s.staff(s.adminRoster))
 	mux.HandleFunc("POST /api/admin/users/role", s.admin(s.adminSetRole))
 	mux.HandleFunc("POST /api/admin/students/import", s.admin(s.adminImportStudents))
+	mux.HandleFunc("POST /api/admin/impersonate", s.admin(s.startImpersonation))
+	mux.HandleFunc("POST /api/impersonate/stop", s.stopImpersonation)
 
 	// optional external scheduler (the server also runs the daily job itself)
 

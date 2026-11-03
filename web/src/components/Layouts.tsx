@@ -2,6 +2,7 @@ import { Suspense, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { prefetchAdmin } from "@/lib/prefetch";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -34,6 +35,24 @@ export function BackButton({ home }: { home: string }) {
   );
 }
 
+/** Shown the whole time an admin is looking at the app as a student, so it can never be forgotten. */
+function ViewingAsBanner({ admin, student }: { admin: string; student: string }) {
+  const stop = async () => {
+    try {
+      await api.post("/api/impersonate/stop");
+    } finally {
+      navigator.serviceWorker?.controller?.postMessage("clear"); // drop what was cached for that student
+      window.location.assign("/admin"); // a full reload, so nothing of the student's session stays on screen
+    }
+  };
+  return (
+    <div role="status" className="no-print sticky top-0 z-50 flex flex-wrap items-center justify-between gap-2 bg-amber-300 px-4 py-2 text-sm font-medium text-slate-900">
+      <span>👁 Viewing as <b>{student}</b> (you are {admin}). What you do here is done as them.</span>
+      <button type="button" onClick={stop} className="rounded bg-slate-900 px-3 py-1 text-white">Exit</button>
+    </div>
+  );
+}
+
 export function StudentLayout() {
   const { me } = useAuth();
   const qc = useQueryClient();
@@ -46,6 +65,7 @@ export function StudentLayout() {
   }, [staff, qc]);
   return (
     <div className="mx-auto min-h-screen max-w-2xl pb-20 md:max-w-3xl lg:max-w-4xl">
+      {me?.viewingAs && <ViewingAsBanner admin={me.viewingAs} student={me.name} />}
       <header className="flex items-center justify-between p-4 md:px-6">
         <span className="font-bold">Spotlight Month</span>
         {me && me.role !== "student" && (

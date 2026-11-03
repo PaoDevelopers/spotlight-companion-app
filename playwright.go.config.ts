@@ -8,6 +8,7 @@ const DB = "/var/tmp/spotlight-e2e.db";
 // The test files read these, so they must be set in this (the test) process, not only for the server.
 process.env.E2E_BACKEND = "go";
 process.env.E2E_SECRET = SECRET;
+process.env.E2E_DB = DB; // lets a test promote its own throwaway user to admin
 
 export default defineConfig({
   testDir: "./e2e",
@@ -20,6 +21,7 @@ export default defineConfig({
     env: {
       PUBLIC_URL: "http://localhost:3100", LISTEN: ":3100", DB_PATH: DB, CHECKIN_SECRET: SECRET,
       DEMO_SEED: "1", DEMO_LOGIN_CODE: "DEMOCODE", AUTH_MODE: "roster",
+      IMPERSONATE_EMAILS: "view.as.admin@ykpaoschool.cn", // the one admin the tests let "view as a student"
     },
   },
 });

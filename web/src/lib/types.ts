@@ -12,6 +12,10 @@ export interface User {
 }
 export interface Me extends User {
   passToken: string;
+  /** Set while an admin is looking at the app as this student: the admin's name. */
+  viewingAs?: string;
+  /** True only for the admins who may "view as a student". */
+  canImpersonate?: boolean;
 }
 export interface Event {
   id: number;
@@ -106,6 +110,10 @@ export interface ScanResult {
   ok: boolean;
   message: string;
   href?: string;
+  /** When check-in is closed: "early" (not open yet) or "late" (over), with the event and when it opens. */
+  reason?: "early" | "late";
+  event?: string;
+  opensAt?: string;
 }
 
 export interface BoardRow {

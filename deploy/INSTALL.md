@@ -83,6 +83,26 @@ readable by the `spotlight` user only), and uncomment the `CAP_NET_BIND_SERVICE`
 Then check from a laptop: `https://spotlight.ykpaoschool.cn/healthz` shows `ok` with a valid padlock, and
 `/manifest.webmanifest` loads.
 
+### 4a. Making it reachable on the school network (Debian)
+
+1. **A name that resolves inside the school.** Ask IT for an internal DNS record `spotlight.ykpaoschool.cn` pointing at this server's address
+   (`ip -4 addr` shows it). Check from another computer on the network: `nslookup spotlight.ykpaoschool.cn`.
+2. **A certificate for that name.** Phones only allow the camera (QR scanning) and Microsoft sign-in on `https`, so a plain `http://192.168.x.x`
+   address is only good for a quick look (see "Try it before HTTPS" below). Use the school's certificate (for example the wildcard one CCA uses). Put the
+   files somewhere root can read, **not** under `/home` (the service cannot see home folders), for example `/etc/ssl/ykpaoschool/`.
+3. **Who owns port 443?** `sudo ss -ltnp | grep ':443'`. If nothing does, use option B above (the app serves HTTPS itself), or nginx.
+   If CCA or another program holds it, put **nginx** in front (`sudo apt install nginx`, then `deploy/nginx.conf.example`) or ask IT for a second
+   address or port. Whatever address people really type must be exactly `PUBLIC_URL` and the redirect address registered with Microsoft.
+4. **Open the firewall** if one is active (Debian has none by default): `sudo ufw status`, then for example
+   `sudo ufw allow from 10.0.0.0/8 to any port 443 proto tcp` (use the school's real range, not the whole Internet).
+5. **Keep it off the Internet for now** (IT's request): only an internal DNS record, no port forward on the school router, and no public DNS name.
+6. **Check from a phone on the school wifi** (not mobile data): open `https://spotlight.ykpaoschool.cn/healthz` (it shows `ok` with a padlock), then sign in
+   and try the Scan page: the camera should ask for permission.
+
+**Try it before HTTPS is ready** (testing only, never print QR codes or tags from this): set `PUBLIC_URL=http://<server-ip>:8080`, `LISTEN=0.0.0.0:8080`,
+`AUTH_MODE=roster`, restart, and open that address on a laptop on the same network. The camera will not work over plain `http` except on `localhost`, and
+Microsoft sign-in cannot work without `https`. Put `PUBLIC_URL` and `LISTEN` back before real use, because printed codes contain `PUBLIC_URL`.
+
 ## 5. First use
 
 1. Open the site, sign in as the admin with the one-time code from step 3.

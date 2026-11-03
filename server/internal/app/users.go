@@ -162,3 +162,14 @@ func audit(ctx context.Context, t *sql.Tx, actor *int64, action string, detail a
 	_, err = t.ExecContext(ctx, `INSERT INTO audit_log (actor_id, action, detail) VALUES (?, ?, ?)`, actor, action, b)
 	return err
 }
+
+// AuditImpersonation records an admin starting or stopping "view as a student".
+func (a *App) AuditImpersonation(ctx context.Context, adminID, studentID int64, start bool) error {
+	action := "impersonate.stop"
+	if start {
+		action = "impersonate.start"
+	}
+	return a.tx(ctx, func(t *sql.Tx) error {
+		return audit(ctx, t, &adminID, action, map[string]any{"studentId": studentID})
+	})
+}

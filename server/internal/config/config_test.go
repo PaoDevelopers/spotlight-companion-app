@@ -58,3 +58,16 @@ func TestEnvironmentOverridesFile(t *testing.T) {
 		t.Fatalf("listen = %v, err %v", c, err)
 	}
 }
+
+func TestImpersonateEmailsAreOptionalAndNormalised(t *testing.T) {
+	c, err := Load("")
+	_ = err
+	if c != nil && len(c.ImpersonateEmails) != 0 {
+		t.Fatal("the feature must be off unless someone is listed")
+	}
+	t.Setenv("IMPERSONATE_EMAILS", " Boss@ykpaoschool.cn , ,second@ykpaoschool.cn")
+	c, _ = Load("")
+	if c == nil || len(c.ImpersonateEmails) != 2 || c.ImpersonateEmails[0] != "boss@ykpaoschool.cn" {
+		t.Fatalf("%+v", c)
+	}
+}

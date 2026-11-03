@@ -29,6 +29,10 @@ AUTH_MODE=roster
 # is printed in the service log on first start (journalctl -u spotlight).
 ADMIN_EMAILS=CHANGE-ME-your-school-email
 
+# Admins (full addresses, comma separated) who may "view the app as a student" to test it: Teacher portal -> View the app as a
+# student. Leave empty to switch the feature off entirely. It only ever shows students, lasts an hour, and is recorded in the audit log.
+# IMPERSONATE_EMAILS=
+
 # School email domains (defaults shown).
 # STAFF_DOMAIN=ykpaoschool.cn
 # STUDENT_DOMAIN=stu.ykpaoschool.cn

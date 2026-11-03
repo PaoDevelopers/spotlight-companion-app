@@ -86,6 +86,44 @@ function LoadStudents() {
   );
 }
 
+/** For the one admin allowed to test the app as a student: pick a student and look through their eyes. */
+function ViewAsStudent() {
+  const [text, setText] = useState("");
+  const term = text.trim();
+  const hits = useQuery({
+    queryKey: ["admin-students", term],
+    queryFn: () => api.get<{ id: number; name: string; className: string }[]>(`/api/admin/students?q=${encodeURIComponent(term)}`),
+    enabled: term.length >= 2,
+    placeholderData: (prev) => prev,
+  });
+  const start = useMutation({
+    mutationFn: (userId: number) => api.post("/api/admin/impersonate", { userId }),
+    onSuccess: () => window.location.assign("/"), // a full reload: the whole app starts again as that student
+  });
+  return (
+    <section className="space-y-2 rounded-lg bg-card p-4 shadow-sm">
+      <b>View the app as a student</b>
+      <p className="text-sm text-muted-foreground">
+        To test what a student sees and does: check-in, sign-up, competitions, awards. A yellow bar stays on screen with an <b>Exit</b> button. It lasts an hour.
+        What you do is recorded as that student, so on the real server use a test student rather than a real one.
+      </p>
+      <Input type="search" name="viewas" autoComplete="off" placeholder="Search students by name, class or email…" value={text} onChange={(e) => setText(e.target.value)} />
+      <FormError error={start.error} />
+      {term.length >= 2 && hits.data && (
+        <ul className="divide-y rounded-md border" aria-label="Students to view as">
+          {hits.data.length === 0 && <li className="p-2 text-sm text-muted-foreground">No student matches “{term}”.</li>}
+          {hits.data.map((h) => (
+            <li key={h.id} className="flex items-center justify-between gap-2 p-2 text-sm">
+              <span>{h.name} <span className="text-muted-foreground">{h.className}</span></span>
+              <Button size="sm" variant="outline" disabled={start.isPending} onClick={() => start.mutate(h.id)}>View as</Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const { me } = useAuth();
   const q = useQuery({ queryKey: ["admin-stats"], queryFn: () => api.get<{ events: number; checkins: number; users: number; exhibits: number }>("/api/admin/stats") });
@@ -107,6 +145,7 @@ export default function Dashboard() {
           ))}
         </div>
       )}
+      {me?.canImpersonate && <ViewAsStudent />}
       {me?.role === "admin" && <LoadStudents />}
       {me?.role === "admin" && (
         <form

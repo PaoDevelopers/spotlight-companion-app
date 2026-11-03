@@ -14,6 +14,12 @@ import (
 // Check-in opens an hour before an event starts and closes when it ends.
 const checkinEarly = time.Hour
 
+// CheckinOpensAt is when students can start checking in to the event.
+func CheckinOpensAt(e Event) time.Time {
+	t, _ := time.Parse(time.RFC3339, e.StartsAt)
+	return t.Add(-checkinEarly)
+}
+
 type CheckinResult struct {
 	EventID   int64
 	Title     string

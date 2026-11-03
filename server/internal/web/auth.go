@@ -51,6 +51,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+	s.clearActor(w)
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: s.app.Cfg.Secure()})
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -138,13 +139,27 @@ func (s *Server) refuse(w http.ResponseWriter, r *http.Request, err error, back 
 type meResponse struct {
 	app.User
 	PassToken string `json:"passToken"`
+	// ViewingAs is the admin's name while they are looking at the app as this student (otherwise empty).
+	ViewingAs string `json:"viewingAs,omitempty"`
+	// CanImpersonate is true only for the admins allowed to "view as a student".
+	CanImpersonate bool `json:"canImpersonate,omitempty"`
 }
 
 func (s *Server) me(w http.ResponseWriter, r *http.Request, u app.User) {
-	writeJSON(w, http.StatusOK, meResponse{u, token.MakePass(s.app.Cfg.Secret, u.ID)})
+	out := meResponse{User: u, PassToken: token.MakePass(s.app.Cfg.Secret, u.ID)}
+	if admin, ok := s.actor(r); ok {
+		out.ViewingAs = admin.Name // this is an admin looking through a student's eyes
+	} else {
+		out.CanImpersonate = s.mayImpersonate(u)
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) updateMe(w http.ResponseWriter, r *http.Request, u app.User) {
+	if _, ok := s.actor(r); ok {
+		fail(w, http.StatusConflict, "viewing_as", "You are viewing as this student: their privacy setting is not changed from here.")
+		return
+	}
 	var in struct {
 		ShowOnLeaderboard *bool `json:"showOnLeaderboard"`
 	}

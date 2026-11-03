@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Scanner } from "@/components/Scanner";
 import { api, errorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { fmtLongDateTime } from "@/lib/format";
 import type { ScanResult } from "@/lib/types";
 
 function useScan() {
@@ -16,12 +17,18 @@ function useScan() {
   });
 }
 
+/** The server says why check-in is closed; the time is shown in the viewer's own clock. */
+function explain(r: ScanResult): string {
+  if (r.reason === "early" && r.opensAt) return `Check-in for “${r.event}” isn't open yet. It opens ${fmtLongDateTime(r.opensAt)} (one hour before it starts).`;
+  return r.message;
+}
+
 function Message({ r, error }: { r?: ScanResult; error?: string }) {
   if (!r && !error) return null;
   const ok = !!r?.ok;
   return (
     <p role="status" className={cn("rounded p-3 font-semibold", ok ? "bg-emerald-100" : "bg-red-100")}>
-      {error ?? r!.message}
+      {error ?? explain(r!)}
     </p>
   );
 }

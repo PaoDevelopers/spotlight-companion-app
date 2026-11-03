@@ -85,7 +85,7 @@ render it with a Markdown component that does **not** allow raw HTML.
 ### Scanning
 
 `POST /api/scan` `{"code": "<anything the camera or NFC gave you>"}` accepts either the bare code or the whole
-`https://host/c/<code>` link. Always answers 200 for scan outcomes:
+`https://host/c/<code>` link. Always answers 200 for scan outcomes (when check-in is closed the answer also has `reason` = `early`|`late`, `event` and `opensAt`, so the app can say when it opens):
 ```json
 {"ok": true,  "message": "Checked in to Hackathon!"}
 {"ok": true,  "message": "Exhibit visit recorded", "href": "/exhibits/double-pendulum"}
@@ -169,6 +169,12 @@ Every change is written to the audit log. Only students can receive awards.
   `published: false` always needs `ids` (hiding "everything" is refused).
 - Public list: `GET /api/leaderboard` also returns `"awards":[{"title","winners":[{"label","reason?"}]}]` (published only). Like the leaderboard, a
   student's name shows only if they opted in; the reason is included only for those students.
+
+**View as a student** (testing; one admin only)
+- Switched on by listing the admin's email in `IMPERSONATE_EMAILS` (empty = off, and the endpoints answer 404). `GET /api/me` then has `"canImpersonate": true` for that admin.
+- `POST /api/admin/impersonate` `{"userId"}` → 200 student. Only students can be viewed. It keeps the admin's identity in a second, differently signed cookie and gives
+  a student session that lasts **one hour**. While viewing, `GET /api/me` has `"viewingAs": "<admin name>"`, admin endpoints answer 403, and a student's privacy setting
+  cannot be changed (409). `POST /api/impersonate/stop` → 200 admin (back to a normal session); 409 if not viewing. Both are in the audit log. Signing out ends it.
 
 **Roster and roles**
 - `POST /api/admin/roster` `{"csv": "name,email,class\n..."}` → `{"issued":[{name,email,className,code}]}`. The codes are shown

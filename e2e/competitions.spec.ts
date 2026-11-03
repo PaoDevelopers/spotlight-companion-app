@@ -45,18 +45,19 @@ test("team and house competitions: entry rules, results, and a readable leaderbo
   const sports = page.locator("section", { hasText: "Sports Day" });
   await sports.getByText("Add a student by hand").click();
   await sports.getByLabel("House").selectOption("Summer");
-  await sports.getByPlaceholder("Search students…").fill("Demo Teacher");
+  await sports.getByPlaceholder("Search students by name or class…").fill("Demo Teacher");
   await expect(sports.getByText("No student matches")).toBeVisible(); // teachers are not students
-  await sports.getByPlaceholder("Search students…").fill("Hand Added");
+  await sports.getByPlaceholder("Search students by name or class…").fill("Hand Added");
   await sports.getByRole("button", { name: "Add", exact: true }).click();
   await expect(sports.getByText("Hand Added")).toBeVisible();
   await expect(sports.getByText("Summer house")).toBeVisible();
   for (const [title, score, rank] of [["Robot Relay", "80", "1"], ["Sports Day", "40", "1"]] as const) {
-    const sec = page.locator("section", { hasText: title });
-    const row = sec.locator("form", { hasText: "Demo Student" }).first();
+    const card = page.getByRole("region", { name: title });
+    const row = card.getByRole("row", { name: "Demo Student" });
     await row.locator('input[name="score"]').fill(score);
     await row.locator('input[name="rank"]').fill(rank);
-    await Promise.all([page.waitForResponse((r) => r.request().method() === "PUT" && r.ok()), row.getByRole("button", { name: "Save" }).click()]);
+    await Promise.all([page.waitForResponse((r) => r.request().method() === "PUT" && r.ok()), card.getByRole("button", { name: /^Save 1 change/ }).click()]);
+    await expect(card.getByRole("button", { name: "✓ All saved" })).toBeVisible();
   }
   await page.screenshot({ path: `${SHOTS}/results.png`, fullPage: true });
 

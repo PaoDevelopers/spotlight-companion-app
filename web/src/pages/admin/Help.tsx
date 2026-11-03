@@ -58,7 +58,9 @@ export default function Help() {
       <Topic title="Competitions and results">
         <ul>
           <li>A competition belongs to an event: tick <b>This event is a competition</b> when you edit the event.</li>
-          <li>Open <Link to="/admin/competitions" className="underline">Results</Link> to see who entered. For each student set a status, a score and a rank, then press <b>Save</b>. The button shows <b>✓ Saved</b> when it is stored.</li>
+          <li>Open <Link to="/admin/competitions" className="underline">Results</Link> to see who entered, in a table with one row per student. Type a <b>score</b> and a <b>rank</b> for each, and a status or note if you like.</li>
+          <li><b>Fill ranks from scores</b> works the ranks out for you: the highest score is rank 1, and equal scores share a rank. You can still change any of them.</li>
+          <li>Rows you have changed are highlighted. Press <b>Save</b> once at the bottom to store all of them. It then shows <b>✓ All saved</b>. If one row cannot be saved (a rank must be 1 or more), the others are still saved and that row stays marked so you can fix it.</li>
           <li>You can add a student by hand (for example one without a phone) with <b>Add a student by hand</b>.</li>
           <li>Results appear on the students' <b>Board</b>. For house competitions the four houses are ranked by their students' scores added up.</li>
         </ul>

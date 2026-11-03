@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { errorMessage } from "@/lib/api";
 import { setUnsaved } from "@/lib/unsaved";
@@ -54,10 +54,11 @@ export function useDraftStatus<T>(draft: T, ready: boolean) {
     if (ready && base === null) setBase(current); // the loaded values are the starting point
   }, [ready, base, current]);
   const dirty = base !== null && current !== base;
+  const key = useId();
   useEffect(() => {
-    setUnsaved(dirty);
-    return () => setUnsaved(false);
-  }, [dirty]);
+    setUnsaved(dirty, key);
+    return () => setUnsaved(false, key);
+  }, [dirty, key]);
   return {
     dirty,
     // "Saved" while the form still shows exactly what was last saved, including after changing something and changing it back

@@ -131,13 +131,25 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
 
   await page.goto("/admin/competitions");
   if (GO) await expect(page.getByRole("heading", { name: "Lab Open Night (updated)" })).toBeVisible(); // named after its event
-  const row = page.locator("form", { hasText: "Demo Student" }).last();
-  await row.locator('select[name="status"]').selectOption("finished");
-  await row.locator('input[name="score"]').fill("95");
-  await row.locator('input[name="rank"]').fill("1");
-  await clickAndSave(page, row.getByRole("button", { name: "Save" }));
-  await page.reload();
-  await expect(page.locator('form:has-text("Demo Student") input[name="score"]').last()).toHaveValue("95");
+  if (GO) {
+    // one table per competition, one Save for every edited row
+    const row = page.getByRole("row", { name: "Demo Student" });
+    await row.locator('select[name="status"]').selectOption("finished");
+    await row.locator('input[name="score"]').fill("95");
+    await row.locator('input[name="rank"]').fill("1");
+    await clickAndSave(page, page.getByRole("button", { name: /^Save 1 change/ }));
+    await expect(page.getByRole("button", { name: "✓ All saved" })).toBeDisabled();
+    await page.reload();
+    await expect(page.getByRole("row", { name: "Demo Student" }).locator('input[name="score"]')).toHaveValue("95");
+  } else {
+    const row = page.locator("form", { hasText: "Demo Student" }).last();
+    await row.locator('select[name="status"]').selectOption("finished");
+    await row.locator('input[name="score"]').fill("95");
+    await row.locator('input[name="rank"]').fill("1");
+    await clickAndSave(page, row.getByRole("button", { name: "Save" }));
+    await page.reload();
+    await expect(page.locator('form:has-text("Demo Student") input[name="score"]').last()).toHaveValue("95");
+  }
   await shot("competitions");
   await student.goto("/");
   await expect(student.getByText(GO ? /finished · rank 1/ : /Physics Quiz · finished · rank 1/)).toBeVisible();

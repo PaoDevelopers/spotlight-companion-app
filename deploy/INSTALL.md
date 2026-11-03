@@ -91,7 +91,7 @@ Then check from a laptop: `https://spotlight.ykpaoschool.cn/healthz` shows `ok` 
    address is only good for a quick look (see "Try it before HTTPS" below). Use the school's certificate (for example the wildcard one CCA uses). Put the
    files somewhere root can read, **not** under `/home` (the service cannot see home folders), for example `/etc/ssl/ykpaoschool/`.
 3. **Who owns port 443?** `sudo ss -ltnp | grep ':443'`. If nothing does, use option B above (the app serves HTTPS itself), or nginx.
-   If CCA or another program holds it, put **nginx** in front (`sudo apt install nginx`, then `deploy/nginx.conf.example`) or ask IT for a second
+   If nginx already holds it (check the program name in that output), just add `deploy/nginx.conf.example` as one more site: nginx tells the sites apart by name, so no second address or port is needed. If a different program holds it, put **nginx** in front (`sudo apt install nginx`) or ask IT for a second
    address or port. Whatever address people really type must be exactly `PUBLIC_URL` and the redirect address registered with Microsoft.
 4. **Open the firewall** if one is active (Debian has none by default): `sudo ufw status`, then for example
    `sudo ufw allow from 10.0.0.0/8 to any port 443 proto tcp` (use the school's real range, not the whole Internet).

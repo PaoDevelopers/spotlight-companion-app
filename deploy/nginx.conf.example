@@ -1,7 +1,9 @@
 # nginx in front of Spotlight, for when something else (CCA, an existing proxy) already uses port 443 on this machine,
 # or you simply prefer a standard web server in front. Debian: sudo apt install nginx
-# Save as /etc/nginx/sites-available/spotlight, then:
-#   sudo ln -s /etc/nginx/sites-available/spotlight /etc/nginx/sites-enabled/spotlight
+# Save as /etc/nginx/sites-available/zz-spotlight, then:
+#   sudo ln -s /etc/nginx/sites-available/zz-spotlight /etc/nginx/sites-enabled/zz-spotlight
+# The "zz-" matters when other sites share port 443: the FIRST site nginx loads for a port becomes its default (the one that answers
+# addresses that match no name), and a name starting "zz-" loads last, so this site never takes that role from the others.
 #   sudo nginx -t && sudo systemctl reload nginx
 # Spotlight itself keeps LISTEN=127.0.0.1:8080 and PUBLIC_URL=https://spotlight.ykpaoschool.cn
 #
@@ -11,12 +13,14 @@
 
 server {
     listen 80;
+    listen [::]:80;
     server_name spotlight.ykpaoschool.cn;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
+    listen [::]:443 ssl;
     server_name spotlight.ykpaoschool.cn;
 
     # The school's certificate for this name (for example the wildcard CCA uses). Keep the key readable by root/nginx only.

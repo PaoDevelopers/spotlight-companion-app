@@ -1,8 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { Prose } from "@/components/Prose";
-import { Button } from "@/components/ui/button";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Exhibit } from "@/lib/types";
 
 export function Exhibits() {
@@ -32,34 +31,21 @@ export function Exhibits() {
 
 interface ExhibitView {
   exhibit: Exhibit;
-  votedForThis: boolean;
   visited: boolean;
 }
 
 export function ExhibitDetail() {
   const { slug } = useParams();
-  const qc = useQueryClient();
   const q = useQuery({ queryKey: ["exhibit", slug], queryFn: () => api.get<ExhibitView>(`/api/exhibits/${slug}`) });
-  const vote = useMutation({
-    mutationFn: (exhibitId: number) => api.put("/api/vote", { exhibitId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["exhibit"] }),
-  });
   if (q.isError) return <p>Exhibit not found.</p>;
   if (!q.data) return null;
-  const { exhibit: x, votedForThis } = q.data;
+  const { exhibit: x } = q.data;
   return (
     <article className="space-y-3">
       <h1 className="text-2xl font-bold">{x.title}</h1>
       <p className="text-muted-foreground">{x.summary}</p>
       {x.imageUrl && <img src={x.imageUrl} alt={x.title} className="w-full rounded-lg" />}
       <Prose>{x.bodyMd}</Prose>
-      <div className="rounded-lg bg-card p-3 shadow-sm">
-        <Button variant="vote" disabled={vote.isPending} onClick={() => vote.mutate(x.id)}>
-          {votedForThis ? "⭐ Your creative vote" : "Vote Most Creative"}
-        </Button>
-        {vote.isError && <p role="alert" className="mt-1 text-sm text-red-700">{errorMessage(vote.error)}</p>}
-        <p className="mt-1 text-xs text-muted-foreground">One vote per student; you can change it until voting closes. You can't vote for your own project.</p>
-      </div>
     </article>
   );
 }

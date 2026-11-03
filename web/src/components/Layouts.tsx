@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { prefetchAdmin } from "@/lib/prefetch";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -13,6 +13,26 @@ const NAV: [string, string][] = [
   ["/leaderboard", "Board"],
   ["/me", "Me"],
 ];
+
+/**
+ * Goes back to the page the person came from. If they opened this page directly (a link, an NFC tap, a reload with no
+ * history), there is nothing to go back to, so it goes up one level in the site instead.
+ */
+export function BackButton({ home }: { home: string }) {
+  const nav = useNavigate();
+  const loc = useLocation();
+  if (loc.pathname === home) return null;
+  const up = loc.pathname.replace(/\/[^/]+\/?$/, "") || home;
+  return (
+    <button
+      type="button"
+      onClick={() => (loc.key !== "default" ? nav(-1) : nav(up.length < home.length ? home : up, { replace: true }))}
+      className="no-print mb-3 inline-flex items-center gap-1 rounded-md py-1 pr-2 text-sm text-muted-foreground hover:text-foreground"
+    >
+      <span aria-hidden>←</span> Back
+    </button>
+  );
+}
 
 export function StudentLayout() {
   const { me } = useAuth();
@@ -35,6 +55,7 @@ export function StudentLayout() {
         )}
       </header>
       <div className="px-4">
+        <BackButton home="/" />
         <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
           <Outlet />
         </Suspense>
@@ -78,6 +99,7 @@ export function AdminLayout({ showRoster }: { showRoster: boolean }) {
           Student view
         </Link>
       </nav>
+      <BackButton home="/admin" />
       <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
         <Outlet />
       </Suspense>

@@ -1,6 +1,6 @@
 // Shapes of the JSON the Go server returns. Keep in sync with docs/API.md.
 export type Role = "student" | "teacher" | "admin";
-export type Subject = "physics" | "cs" | "both";
+export type Subject = "physics" | "chemistry" | "cs" | "both";
 
 export interface User {
   id: number;

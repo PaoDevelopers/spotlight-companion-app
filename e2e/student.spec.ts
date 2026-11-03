@@ -1,3 +1,4 @@
+import { GO } from "./env";
 import { test, expect } from "@playwright/test";
 import { SHOTS, expectNoHorizontalOverflow, hideDevOverlay, login } from "./helpers";
 
@@ -39,8 +40,13 @@ test("student pages render and work at phone size", async ({ page }) => {
   await page.getByRole("link", { name: "Exhibits", exact: true }).click();
   await page.getByText("Double Pendulum").click();
   await expect(page.getByRole("heading", { name: "What you're seeing" })).toBeVisible();
-  await page.getByRole("button", { name: "Vote Most Creative" }).click();
-  await expect(page.getByRole("button", { name: /Your creative vote/ })).toBeVisible();
+  if (GO) {
+    // exhibit pages are for introduction only: no voting
+    await expect(page.getByRole("button", { name: /vote/i })).toHaveCount(0);
+  } else {
+    await page.getByRole("button", { name: "Vote Most Creative" }).click();
+    await expect(page.getByRole("button", { name: /Your creative vote/ })).toBeVisible();
+  }
   await expectNoHorizontalOverflow(page); await shot("exhibit");
 
   // Leaderboard hides name until opted in

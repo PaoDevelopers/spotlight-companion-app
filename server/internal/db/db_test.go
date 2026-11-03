@@ -131,3 +131,55 @@ func TestBackupIsAConsistentCopyAndRefusesToOverwrite(t *testing.T) {
 		t.Fatalf("backup is missing data: %d %v", n, err)
 	}
 }
+
+// The chemistry migration rebuilds events and exhibits; the rows and everything that points at them must survive.
+func TestChemistryMigrationKeepsDataAndChildren(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "old.db")
+	d, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// go back to the state before 0003, with data in tables that reference events and exhibits
+	for _, q := range []string{
+		`DELETE FROM schema_migrations WHERE version IN ('0003_chemistry.sql')`,
+		`INSERT INTO users (id, email, name) VALUES (1, 'a@x', 'A')`,
+		`INSERT INTO events (id, title, subject, starts_at, ends_at) VALUES (7, 'Talk', 'cs', 100, 200)`,
+		`INSERT INTO checkins (event_id, user_id, method) VALUES (7, 1, 'qr')`,
+		`INSERT INTO event_signups (event_id, user_id) VALUES (7, 1)`,
+		`INSERT INTO competitions (event_id, name) VALUES (7, 'Quiz')`,
+		`INSERT INTO exhibits (id, slug, title, subject) VALUES (3, 'pend', 'Pendulum', 'physics')`,
+		`INSERT INTO exhibit_visits (exhibit_id, user_id) VALUES (3, 1)`,
+	} {
+		mustExec(t, d, q)
+	}
+	d.Close()
+	d, err = Open(ctx, path) // runs 0003 again on data
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	for q, want := range map[string]int{
+		`SELECT COUNT(*) FROM events`: 1, `SELECT COUNT(*) FROM checkins`: 1, `SELECT COUNT(*) FROM event_signups`: 1,
+		`SELECT COUNT(*) FROM competitions`: 1, `SELECT COUNT(*) FROM exhibits`: 1, `SELECT COUNT(*) FROM exhibit_visits`: 1,
+	} {
+		var n int
+		if err := d.Read.QueryRow(q).Scan(&n); err != nil || n != want {
+			t.Errorf("%s = %d (err %v), want %d", q, n, err, want)
+		}
+	}
+	mustExec(t, d, `INSERT INTO events (title, subject, starts_at, ends_at) VALUES ('Reactions', 'chemistry', 100, 200)`)
+	mustExec(t, d, `INSERT INTO exhibits (slug, title, subject) VALUES ('ph', 'Indicators', 'chemistry')`)
+	var on int
+	d.Write.QueryRow(`PRAGMA foreign_keys`).Scan(&on)
+	if on != 1 {
+		t.Error("foreign keys must be switched back on")
+	}
+	// deleting the event still cascades to its children
+	mustExec(t, d, `DELETE FROM events WHERE id = 7`)
+	var n int
+	d.Read.QueryRow(`SELECT COUNT(*) FROM checkins`).Scan(&n)
+	if n != 0 {
+		t.Errorf("checkins should cascade-delete with the event, %d left", n)
+	}
+}

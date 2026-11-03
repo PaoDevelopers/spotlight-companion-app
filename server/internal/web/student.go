@@ -297,3 +297,19 @@ func (s *Server) myCheckins(w http.ResponseWriter, r *http.Request, u app.User) 
 	}
 	writeJSON(w, http.StatusOK, list)
 }
+
+// image serves an uploaded picture. It is only for signed-in users and never changes, so browsers may keep it.
+func (s *Server) image(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	ct, data, err := s.app.Image(r.Context(), id)
+	if err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	w.Write(data)
+}

@@ -45,7 +45,7 @@ func (in EventInput) validate() error {
 	if strings.TrimSpace(in.Title) == "" || in.StartsAt.IsZero() || in.EndsAt.IsZero() || !in.EndsAt.After(in.StartsAt) {
 		return ErrInvalid
 	}
-	if in.Subject != "physics" && in.Subject != "cs" && in.Subject != "both" {
+	if !ValidSubject(in.Subject) {
 		return ErrInvalid
 	}
 	if in.Capacity != nil && *in.Capacity <= 0 {
@@ -70,7 +70,7 @@ func scanEvent(r interface{ Scan(...any) error }) (Event, error) {
 // Events lists events by start time; subject "" means all, otherwise that subject plus "both".
 func (a *App) Events(ctx context.Context, subject string) ([]Event, error) {
 	q, args := `SELECT `+eventCols+` FROM events`, []any{}
-	if subject == "physics" || subject == "cs" {
+	if subject != "" && subject != "both" && ValidSubject(subject) {
 		q += ` WHERE subject IN (?, 'both')`
 		args = append(args, subject)
 	}
@@ -147,4 +147,9 @@ func (a *App) UpdateEvent(ctx context.Context, id int64, in EventInput) (Event, 
 func (a *App) DeleteEvent(ctx context.Context, id int64) error {
 	_, err := a.DB.Write.ExecContext(ctx, `DELETE FROM events WHERE id = ?`, id)
 	return err
+}
+
+// ValidSubject says whether s is a subject an event or exhibit can have. "both" means a mix of several.
+func ValidSubject(s string) bool {
+	return s == "physics" || s == "chemistry" || s == "cs" || s == "both"
 }

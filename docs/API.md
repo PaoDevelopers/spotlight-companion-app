@@ -107,7 +107,7 @@ Check-in codes contain dots, dashes and underscores; do not treat them as file n
 **Events**
 - `GET /api/admin/events` → `[Event]`
 - `POST /api/admin/events` `{title,subject,description,venue,host,imageUrl,startsAt,endsAt,capacity|null,signupEnabled}` → 201 `Event`
-  (`subject` is `physics`, `cs` or `both`; end must be after start; capacity > 0 or null; `description` is Markdown;
+  (`subject` is `physics`, `chemistry`, `cs` or `both` ("both" = a mix of several, shown as Mixed); end must be after start; capacity > 0 or null; `description` is Markdown;
   `imageUrl` must be `https://...` or a `/path`; `signupEnabled` defaults to true when omitted). Invalid → `422 invalid`.
   `Event` = `{id,title,subject,description,venue|null,startsAt,endsAt,capacity|null,imageUrl|null,host|null,signupEnabled,signupCount}`.
 - `GET /api/admin/events/{id}` → `{"event":Event,"attendees":[{userId,name,className,method,at}],"signups":[{userId,name,email,className,byStaff,at,checkedIn}],"tagToken","tagUrl"}`.
@@ -124,16 +124,24 @@ Check-in codes contain dots, dashes and underscores; do not treat them as file n
 - `GET /api/admin/events/{id}/attendees.csv` → `text/csv` download.
 - `POST /api/admin/events/{id}/scan-pass` `{"token": "<scanned student pass>"}` → `{"ok","message"}` like `/api/scan`.
 
+**Pictures** (for descriptions and cover images)
+- `POST /api/admin/images` raw bytes of one picture (any `Content-Type`) → 201 `{"id","url":"/api/images/<id>"}`. PNG, JPEG, GIF or WebP up to 6 MB,
+  recognised from the bytes (SVG and everything else → `422 invalid`). Put the `url` in Markdown as `![text](/api/images/<id>)` or in `imageUrl`.
+- `GET /api/images/{id}` (any signed-in user) → the picture; never changes, so it is cached for a year.
+
 **Exhibits**
 - `GET /api/admin/exhibits` → `[Exhibit + tagToken + tagUrl]` (`tagUrl` = permanent link for the exhibit's QR/NFC tag).
 - `POST /api/admin/exhibits` `{title,slug,subject,summary,bodyMd,imageUrl,owners:[email]}` → `Exhibit + tag`. Saving with an
   existing slug updates it; a non-empty `owners` list replaces the creators (they receive "Most Creative"). `imageUrl` must
   be `https://...` or a `/path`.
 
+- `DELETE /api/admin/exhibits/{id}` → 204 (its visits, votes and scores go with it; its printed QR stops working). Unknown id → 404.
+
 **Competitions**
 - `GET /api/admin/competitions` → `{"events":[Event],"competitions":[{id,eventId,name,isTeam,entries:[Entry]}]}`.
   `Entry` = `{id,competitionId,userId,name,className,teamName|null,status,score|null,rank|null,notes|null}`.
 - `POST /api/admin/competitions` `{eventId,name,isTeam}` → 201.
+- `DELETE /api/admin/competitions/{id}` → 204 (all entries go with it).
 - `PUT /api/admin/entries/{id}` `{status,score|null,rank|null,notes|null}` → 204. `status` is one of `registered`,
   `competing`, `advanced`, `eliminated`, `finished`.
 

@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { QrImage } from "@/components/QrImage";
+import { CoverImageField } from "@/components/CoverImageField";
+import { SUBJECTS } from "@/lib/subjects";
 import { api } from "@/lib/api";
 import type { Exhibit } from "@/lib/types";
 import { FormError, SaveButton, panel } from "./shared";
@@ -37,6 +39,13 @@ export default function AdminExhibits() {
       setEditing(false);
     },
   });
+  const remove = useMutation({
+    mutationFn: (id: number) => api.del(`/api/admin/exhibits/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-exhibits"] });
+      qc.invalidateQueries({ queryKey: ["exhibits"] });
+    },
+  });
   function submit(e: FormEvent) {
     e.preventDefault();
     save.mutate({ ...d, owners: d.owners.split(/[,\s]+/).filter(Boolean) });
@@ -55,11 +64,11 @@ export default function AdminExhibits() {
         <Input name="title" required placeholder="Title" value={d.title} onChange={(e) => set("title", e.target.value)} />
         <Input name="slug" placeholder="URL slug (optional)" value={d.slug} readOnly={editing} onChange={(e) => set("slug", e.target.value)} />
         <Select name="subject" value={d.subject} onChange={(e) => set("subject", e.target.value)}>
-          <option value="physics">Physics</option>
-          <option value="cs">CS</option>
-          <option value="both">Both</option>
+          {SUBJECTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </Select>
-        <Input name="imageUrl" placeholder="Image URL (optional, https://…)" value={d.imageUrl} onChange={(e) => set("imageUrl", e.target.value)} />
+        <div className="sm:col-span-2">
+          <CoverImageField name="imageUrl" value={d.imageUrl} onChange={(v) => set("imageUrl", v)} />
+        </div>
         <Input name="summary" placeholder="One-line summary" value={d.summary} onChange={(e) => set("summary", e.target.value)} className="sm:col-span-2" />
         <div className="sm:col-span-2">
           <MarkdownEditor name="bodyMd" value={d.bodyMd} onChange={(v) => set("bodyMd", v)} rows={8} placeholder={"## What you're seeing\n## How it works\n## Try this"} />
@@ -71,6 +80,7 @@ export default function AdminExhibits() {
           {editing && <Button type="button" variant="outline" onClick={() => { setD(EMPTY); setEditing(false); }}>Cancel</Button>}
         </div>
       </form>
+      <FormError error={remove.error} />
       <p className="text-sm text-muted-foreground">Print a QR (or write the URL to an NFC tag) for each exhibit and place it at the installation.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {q.data?.map((x) => (
@@ -78,7 +88,17 @@ export default function AdminExhibits() {
             <b>{x.title}</b>
             <div className="flex justify-center"><QrImage text={x.tagUrl} size={160} /></div>
             <code className="break-all text-[10px]">{x.tagUrl}</code>
-            <div><button type="button" className="mt-1 text-sm underline" onClick={() => edit(x)}>Edit</button></div>
+            <div className="mt-1 flex justify-center gap-4 text-sm">
+              <button type="button" className="underline" onClick={() => edit(x)}>Edit</button>
+              <button
+                type="button"
+                className="text-red-700 underline"
+                disabled={remove.isPending}
+                onClick={() => { if (window.confirm(`Delete “${x.title}”? Its printed QR code will stop working and visits are forgotten.`)) remove.mutate(x.id); }}
+              >
+                Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>

@@ -272,3 +272,15 @@ func (a *App) MonthLeaderboard(ctx context.Context, limit int) ([]MonthRow, erro
 	}
 	return out, nil
 }
+
+// DeleteCompetition removes a competition and every student's entry in it.
+func (a *App) DeleteCompetition(ctx context.Context, id int64) error {
+	res, err := a.DB.Write.ExecContext(ctx, `DELETE FROM competitions WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

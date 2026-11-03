@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Input, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -51,9 +52,19 @@ export default function AdminCompetitions() {
     mutationFn: (body: object) => api.post("/api/admin/competitions", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-competitions"] }),
   });
+  const remove = useMutation({
+    mutationFn: (id: number) => api.del(`/api/admin/competitions/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-competitions"] }),
+  });
+  const noEvents = q.data && q.data.events.length === 0;
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Competitions</h1>
+      {noEvents && (
+        <p role="status" className={`${panel} text-sm`}>
+          A competition belongs to an event, and there are no events yet. <Link to="/admin/events/new" className="underline">Create an event first</Link>, then come back here.
+        </p>
+      )}
       <form
         className={`${panel} flex flex-wrap items-center gap-2`}
         onSubmit={(e) => {
@@ -64,16 +75,28 @@ export default function AdminCompetitions() {
         }}
       >
         <Input name="name" required placeholder="Competition name" className="w-auto" />
-        <Select name="eventId" className="w-auto">
+        <Select name="eventId" required defaultValue="" className="w-auto" aria-label="Event">
+          <option value="" disabled>Choose an event…</option>
           {q.data?.events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
         </Select>
         <label><input type="checkbox" name="isTeam" /> Team</label>
-        <Button disabled={create.isPending}>Create</Button>
+        <Button disabled={create.isPending || !!noEvents}>Create</Button>
         <FormError error={create.error} />
       </form>
+      <FormError error={remove.error} />
       {q.data?.competitions.map((c) => (
         <section key={c.id} className={panel}>
-          <h2 className="mb-2 font-semibold">{c.name}</h2>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="font-semibold">{c.name}</h2>
+            <button
+              type="button"
+              className="text-sm text-red-700 underline"
+              disabled={remove.isPending}
+              onClick={() => { if (window.confirm(`Delete “${c.name}” and all ${c.entries.length} entries? This cannot be undone.`)) remove.mutate(c.id); }}
+            >
+              Delete
+            </button>
+          </div>
           {c.entries.map((e) => <EntryRow key={`${e.id}-${e.status}-${e.score}-${e.rank}`} e={e} />)}
         </section>
       ))}

@@ -38,6 +38,9 @@ self.addEventListener("fetch", (e) => {
           : new Response("You're offline. Open this page once with a connection first.", { status: 503, headers: { "Content-Type": "text/plain" } }),
       ),
     );
+  } else if (url.pathname.startsWith("/api/images/")) {
+    // uploaded pictures never change (a new picture gets a new number), so keep them for offline exhibit pages
+    e.respondWith(caches.open(CACHE).then(async (c) => (await c.match(req)) ?? fetch(req).then((r) => { if (r.ok) c.put(req, r.clone()); return r; })));
   } else if (url.pathname === "/api/exhibits" || url.pathname.startsWith("/api/exhibits/")) {
     e.respondWith(networkFirst(req));
   }

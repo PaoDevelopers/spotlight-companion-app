@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Textarea } from "@/components/ui/input";
 import { Prose } from "@/components/Prose";
+import { errorMessage } from "@/lib/api";
+import { uploadImage } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
 type Tool = { label: string; title: string; run: (sel: string) => { text: string; select?: [number, number] } };
@@ -26,7 +28,34 @@ const TOOLS: Tool[] = [
 /** A textarea with a formatting toolbar and a Write/Preview switch, so teachers don't have to know Markdown. */
 export function MarkdownEditor({ name, value, onChange, placeholder, rows = 10 }: { name: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
   const [tab, setTab] = useState<"write" | "preview">("write");
+  const [busy, setBusy] = useState("");
+  const [problem, setProblem] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
+  const files = useRef<HTMLInputElement>(null);
+
+  /** Uploads each picture and puts them into the text where the cursor was, one per paragraph. */
+  async function addPictures(list: File[]) {
+    const pics = list.filter((f) => f.type.startsWith("image/"));
+    if (pics.length === 0) return;
+    const el = ref.current;
+    const at = el ? [el.selectionStart, el.selectionEnd] : [value.length, value.length];
+    const lines: string[] = [];
+    setProblem("");
+    for (const [i, f] of pics.entries()) {
+      setBusy(`Uploading picture ${i + 1} of ${pics.length}…`);
+      try {
+        const alt = f.name.replace(/\.[^.]+$/, "").replace(/[[\]()]/g, " ").trim() || "picture";
+        lines.push(`![${alt}](${await uploadImage(f)})`);
+      } catch (e) {
+        setProblem(errorMessage(e));
+      }
+    }
+    setBusy("");
+    if (lines.length === 0) return;
+    const before = value.slice(0, at[0]);
+    const lead = before && !before.endsWith("\n\n") ? (before.endsWith("\n") ? "\n" : "\n\n") : "";
+    onChange(before + lead + lines.join("\n\n") + "\n\n" + value.slice(at[1]));
+  }
 
   function apply(tool: Tool) {
     const el = ref.current;
@@ -54,6 +83,9 @@ export function MarkdownEditor({ name, value, onChange, placeholder, rows = 10 }
         {tabBtn("preview", "Preview")}
         {tab === "write" && (
           <span className="ml-2 flex flex-wrap gap-1">
+            <button type="button" title="Insert pictures" aria-label="Insert pictures" disabled={!!busy} onClick={() => files.current?.click()} className="rounded px-2 py-1 text-sm font-medium hover:bg-accent disabled:opacity-60">
+              🖼 Pictures
+            </button>
             {TOOLS.map((t) => (
               <button key={t.title} type="button" title={t.title} aria-label={t.title} onClick={() => apply(t)} className="rounded px-2 py-1 text-sm font-medium hover:bg-accent">
                 {t.label}
@@ -62,10 +94,32 @@ export function MarkdownEditor({ name, value, onChange, placeholder, rows = 10 }
           </span>
         )}
       </div>
+      <input ref={files} type="file" accept="image/*" multiple hidden aria-label="Choose pictures" onChange={(e) => { void addPictures([...(e.target.files ?? [])]); e.target.value = ""; }} />
+      {(busy || problem) && (
+        <p role={problem ? "alert" : "status"} className={cn("border-b px-3 py-1 text-sm", problem ? "text-red-700" : "text-muted-foreground")}>
+          {busy || problem}
+        </p>
+      )}
       {tab === "write" ? (
-        <Textarea ref={ref} name={name} rows={rows} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="rounded-none border-0 focus-visible:ring-0" />
+        <Textarea
+          ref={ref}
+          name={name}
+          rows={rows}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onPaste={(e) => {
+            const pics = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+            if (pics.length) { e.preventDefault(); void addPictures(pics); }
+          }}
+          onDrop={(e) => {
+            const pics = [...e.dataTransfer.files].filter((f) => f.type.startsWith("image/"));
+            if (pics.length) { e.preventDefault(); void addPictures(pics); }
+          }}
+          placeholder={placeholder}
+          className="rounded-none border-0 focus-visible:ring-0"
+        />
       ) : (
-        <div className="min-h-32 p-3 text-sm">{value.trim() ? <Prose>{value}</Prose> : <p className="text-muted-foreground">Nothing to preview yet.</p>}</div>
+        <div className="min-h-32 p-3 text-sm" data-testid="md-preview">{value.trim() ? <Prose>{value}</Prose> : <p className="text-muted-foreground">Nothing to preview yet.</p>}</div>
       )}
     </div>
   );

@@ -86,7 +86,7 @@ func (a *App) VisitedExhibitIDs(ctx context.Context, userID int64) (map[int64]bo
 func (a *App) SaveExhibit(ctx context.Context, in ExhibitInput) (Exhibit, error) {
 	title := strings.TrimSpace(in.Title)
 	slug := Slugify(firstNonEmpty(in.Slug, title))
-	if title == "" || slug == "" || (in.Subject != "physics" && in.Subject != "cs" && in.Subject != "both") {
+	if title == "" || slug == "" || !ValidSubject(in.Subject) {
 		return Exhibit{}, ErrInvalid
 	}
 	var id int64
@@ -125,4 +125,16 @@ func firstNonEmpty(vs ...string) string {
 		}
 	}
 	return ""
+}
+
+// DeleteExhibit removes an exhibit with its visits, votes and scores (they cascade). Published prizes stay.
+func (a *App) DeleteExhibit(ctx context.Context, id int64) error {
+	res, err := a.DB.Write.ExecContext(ctx, `DELETE FROM exhibits WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

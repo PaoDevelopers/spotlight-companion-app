@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { SubjectBadge } from "@/components/ui/badge";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { Prose } from "@/components/Prose";
+import { CoverImageField } from "@/components/CoverImageField";
+import { SUBJECTS } from "@/lib/subjects";
 import { api } from "@/lib/api";
 import { fmtLongDateTime, fromLocalInput, toLocalInput } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -35,7 +37,6 @@ const fromEvent = (e: Event): Draft => ({
 const minutesBetween = (a: string, b: string) => (a && b ? Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000) : 0);
 const addMinutes = (local: string, m: number) => (local ? toLocalInput(new Date(new Date(local).getTime() + m * 60000).toISOString()) : "");
 
-const SUBJECTS: [Subject, string][] = [["physics", "Physics"], ["cs", "CS"], ["both", "Both"]];
 const DURATIONS: [number, string][] = [[30, "30 min"], [60, "1 h"], [90, "90 min"], [120, "2 h"], [180, "3 h"]];
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -84,6 +85,10 @@ export function AdminEventEdit() {
     });
   }
 
+  const del = useMutation({
+    mutationFn: () => api.del(`/api/admin/events/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-events"] }); qc.invalidateQueries({ queryKey: ["events"] }); navigate("/admin/events", { replace: true }); },
+  });
   const bad = d.startsAt && d.endsAt && minutesBetween(d.startsAt, d.endsAt) <= 0 ? "The event must end after it starts." : "";
   const save = useMutation({
     mutationFn: (body: object) => (id ? api.put<Event>(`/api/admin/events/${id}`, body) : api.post<Event>("/api/admin/events", body)),
@@ -156,11 +161,12 @@ export function AdminEventEdit() {
             {bad && <p role="alert" className="text-sm text-red-700">{bad}</p>}
           </Section>
 
-          <Section title="About this event" hint="Students read this on the event page. Use the toolbar for headings, lists and links; Preview shows the result.">
+          <Section title="About this event" hint="Students read this on the event page. Use the toolbar for headings, lists, links and pictures (you can also paste or drop pictures into the text). Preview shows the result.">
             <MarkdownEditor name="description" value={d.description} onChange={(v) => set("description", v)} placeholder={"## What to expect\nTell students what happens, what to bring and who it is for."} />
-            <Label text="Cover image address (optional)">
-              <Input name="imageUrl" type="text" inputMode="url" value={d.imageUrl} onChange={(e) => set("imageUrl", e.target.value)} placeholder="https://…" />
-            </Label>
+            <div className="text-sm">
+              <span className="mb-1 block font-medium">Cover picture (optional)</span>
+              <CoverImageField name="imageUrl" value={d.imageUrl} onChange={(v) => set("imageUrl", v)} />
+            </div>
           </Section>
 
           <Section title="Places and sign-up">
@@ -201,8 +207,18 @@ export function AdminEventEdit() {
           </article>
         </aside>
       </div>
-      <FormError error={save.error} />
-      <div className="sticky bottom-0 -mx-4 flex justify-end gap-2 border-t bg-background/95 p-3 backdrop-blur">
+      <FormError error={save.error ?? del.error} />
+      <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-2 border-t bg-background/95 p-3 backdrop-blur">
+        {id && (
+          <button
+            type="button"
+            className="mr-auto text-sm text-red-700 underline"
+            disabled={del.isPending}
+            onClick={() => { if (window.confirm(`Delete “${d.title}” with its check-ins, sign-ups and competitions? This cannot be undone.`)) del.mutate(); }}
+          >
+            Delete this event
+          </button>
+        )}
         <Button asChild variant="outline"><Link to={id ? `/admin/events/${id}` : "/admin/events"}>Cancel</Link></Button>
         <SaveButton pending={save.isPending} disabled={!!bad}>{id ? "Save changes" : "Create event"}</SaveButton>
       </div>

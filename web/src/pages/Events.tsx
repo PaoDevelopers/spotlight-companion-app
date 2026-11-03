@@ -8,6 +8,7 @@ import { SubjectBadge } from "@/components/ui/badge";
 import { Prose } from "@/components/Prose";
 import { api, errorMessage } from "@/lib/api";
 import { fmtDateTime, fmtLongDateTime } from "@/lib/format";
+import { SUBJECTS } from "@/lib/subjects";
 import { cn } from "@/lib/utils";
 import type { Event } from "@/lib/types";
 
@@ -19,7 +20,7 @@ export function Events() {
     <div>
       <h1 className="mb-3 text-2xl font-bold">Events</h1>
       <div className="mb-4 flex gap-2 text-sm">
-        {[["", "All"], ["physics", "Physics"], ["cs", "CS"]].map(([v, l]) => (
+        {[["", "All"], ...SUBJECTS.filter(([v]) => v !== "both")].map(([v, l]) => (
           <Link key={v} to={v ? `/events?subject=${v}` : "/events"} className={cn("rounded-full border px-3 py-1", subject === v ? "bg-primary text-primary-foreground" : "bg-card")}>
             {l}
           </Link>

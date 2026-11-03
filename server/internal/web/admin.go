@@ -1,7 +1,10 @@
 package web
 
 import (
+	"errors"
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -260,7 +263,7 @@ func (s *Server) adminSaveExhibit(w http.ResponseWriter, r *http.Request, u app.
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if img := strings.TrimSpace(in.ImageURL); img != "" && !strings.HasPrefix(img, "https://") && !strings.HasPrefix(img, "/") {
+	if img := strings.TrimSpace(in.ImageURL); img != "" && !strings.HasPrefix(img, "https://") && (!strings.HasPrefix(img, "/") || strings.HasPrefix(img, "//")) {
 		s.appError(w, r, app.ErrInvalid) // no javascript: or data: URLs in the image field
 		return
 	}
@@ -556,4 +559,47 @@ func (s *Server) adminStudents(w http.ResponseWriter, r *http.Request, u app.Use
 		return
 	}
 	writeJSON(w, http.StatusOK, hits)
+}
+
+func (s *Server) adminDeleteExhibit(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := s.app.DeleteExhibit(r.Context(), id); err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) adminDeleteCompetition(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := s.app.DeleteCompetition(r.Context(), id); err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// adminUploadImage takes the raw bytes of one picture and answers with the address to put in a description.
+func (s *Server) adminUploadImage(w http.ResponseWriter, r *http.Request, u app.User) {
+	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, app.MaxImageBytes+1))
+	if err != nil {
+		fail(w, http.StatusRequestEntityTooLarge, "too_large", "that picture is too large")
+		return
+	}
+	id, err := s.app.SaveImage(r.Context(), data, u.ID)
+	if err != nil {
+		if errors.Is(err, app.ErrInvalid) {
+			fail(w, http.StatusUnprocessableEntity, "invalid", "use a PNG, JPEG, GIF or WebP picture under 6 MB")
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "url": "/api/images/" + strconv.FormatInt(id, 10)})
 }

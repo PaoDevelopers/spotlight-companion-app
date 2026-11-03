@@ -45,8 +45,8 @@ export function StudentLayout() {
     return () => window.clearTimeout(t);
   }, [staff, qc]);
   return (
-    <div className="mx-auto min-h-screen max-w-2xl pb-20">
-      <header className="flex items-center justify-between p-4">
+    <div className="mx-auto min-h-screen max-w-2xl pb-20 md:max-w-3xl lg:max-w-4xl">
+      <header className="flex items-center justify-between p-4 md:px-6">
         <span className="font-bold">Spotlight Month</span>
         {me && me.role !== "student" && (
           <Link to="/admin" className="text-sm underline" onPointerEnter={() => prefetchAdmin(qc)} onFocus={() => prefetchAdmin(qc)}>
@@ -54,14 +54,14 @@ export function StudentLayout() {
           </Link>
         )}
       </header>
-      <div className="px-4">
+      <div className="px-4 md:px-6">
         <BackButton home="/" />
         <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
           <Outlet />
         </Suspense>
       </div>
       <nav className="fixed inset-x-0 bottom-0 border-t bg-card">
-        <ul className="mx-auto flex max-w-2xl justify-around">
+        <ul className="mx-auto flex max-w-2xl justify-around md:max-w-3xl lg:max-w-4xl">
           {NAV.map(([to, label]) => (
             <li key={to}>
               <NavLink to={to} end={to === "/"} className={({ isActive }) => cn("block px-3 py-4 text-sm", isActive && "font-semibold underline")}>
@@ -85,7 +85,7 @@ const ADMIN_NAV: [string, string][] = [
 
 export function AdminLayout({ showRoster }: { showRoster: boolean }) {
   return (
-    <div className="mx-auto max-w-4xl p-4">
+    <div className="mx-auto max-w-4xl p-4 md:px-6 lg:max-w-6xl">
       <nav className="no-print mb-6 flex flex-wrap gap-4 border-b pb-3">
         <Link to="/admin" className="font-bold">
           Teacher portal

@@ -9,6 +9,7 @@ import { Prose } from "@/components/Prose";
 import { api, errorMessage } from "@/lib/api";
 import { fmtDateTime, fmtLongDateTime } from "@/lib/format";
 import { SUBJECTS } from "@/lib/subjects";
+import { kindLabel } from "@/lib/competition";
 import { cn } from "@/lib/utils";
 import type { Event } from "@/lib/types";
 
@@ -26,8 +27,9 @@ export function Events() {
           </Link>
         ))}
       </div>
+      <div className="grid gap-2 md:grid-cols-2">
       {q.data?.map((e) => (
-        <Link key={e.id} to={`/events/${e.id}`} className="mb-2 block rounded-lg bg-card p-3 shadow-sm">
+        <Link key={e.id} to={`/events/${e.id}`} className="block rounded-lg bg-card p-3 shadow-sm">
           <SubjectBadge subject={e.subject} />
           <span className="font-semibold">{e.title}</span>
           <div className="text-sm text-muted-foreground">
@@ -36,6 +38,7 @@ export function Events() {
           </div>
         </Link>
       ))}
+      </div>
     </div>
   );
 }
@@ -44,7 +47,7 @@ interface EventView {
   event: Event;
   checkedIn: boolean;
   signedUp: boolean;
-  competitions: { id: number; name: string; isTeam: boolean; myStatus: string | null }[];
+  competitions: { id: number; name: string; isTeam: boolean; kind: string; houses?: string[]; myStatus: string | null }[];
 }
 
 export function EventDetail() {
@@ -55,7 +58,7 @@ export function EventDetail() {
   const { event: e, checkedIn, signedUp, competitions } = q.data;
   return (
     <article className="space-y-3">
-      {e.imageUrl && <img src={e.imageUrl} alt="" className="h-44 w-full rounded-lg object-cover" onError={(ev) => (ev.currentTarget.style.display = "none")} />}
+      {e.imageUrl && <img src={e.imageUrl} alt="" className="h-44 w-full rounded-lg object-cover md:h-64" onError={(ev) => (ev.currentTarget.style.display = "none")} />}
       <h1 className="text-2xl font-bold">{e.title}</h1>
       <p className="text-muted-foreground">
         {fmtLongDateTime(e.startsAt)}
@@ -70,10 +73,10 @@ export function EventDetail() {
       {competitions.map((c) =>
         c.myStatus ? (
           <div key={c.id} className="rounded-lg bg-emerald-100 p-3">
-            ✅ Registered for {c.name} · <b>{c.myStatus}</b>
+            ✅ You're entered in the competition · <b>{c.myStatus}</b>
           </div>
         ) : (
-          <RegisterForm key={c.id} id={c.id} name={c.name} isTeam={c.isTeam} eventId={e.id} />
+          <RegisterForm key={c.id} id={c.id} kind={c.kind} houses={c.houses ?? []} eventId={e.id} />
         ),
       )}
     </article>
@@ -109,13 +112,15 @@ function SignupBox({ event: e, signedUp, checkedIn }: { event: Event; signedUp: 
   );
 }
 
-function RegisterForm({ id, name, isTeam, eventId }: { id: number; name: string; isTeam: boolean; eventId: number }) {
+function RegisterForm({ id, kind, houses, eventId }: { id: number; kind: string; houses: string[]; eventId: number }) {
   const qc = useQueryClient();
   const [team, setTeam] = useState("");
+  const [house, setHouse] = useState("");
   const m = useMutation({
-    mutationFn: () => api.post(`/api/competitions/${id}/register`, { team }),
-    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ["event", String(eventId)] }), qc.invalidateQueries({ queryKey: ["home"] })]),
+    mutationFn: () => api.post(`/api/competitions/${id}/register`, { team, house }),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ["event", String(eventId)] }), qc.invalidateQueries({ queryKey: ["home"] }), qc.invalidateQueries({ queryKey: ["leaderboard"] })]),
   });
+  const ready = kind === "team" ? team.trim() !== "" : kind === "house" ? house !== "" : true;
   return (
     <form
       onSubmit={(ev) => {
@@ -124,10 +129,19 @@ function RegisterForm({ id, name, isTeam, eventId }: { id: number; name: string;
       }}
       className="space-y-2 rounded-lg bg-card p-3 shadow-sm"
     >
-      <div className="font-semibold">Competition: {name}</div>
-      {isTeam && <Input value={team} onChange={(e) => setTeam(e.target.value)} placeholder="Team name" />}
+      <div className="font-semibold">🏁 Competition · {kindLabel(kind)}</div>
+      {kind === "team" && <Input value={team} onChange={(e) => setTeam(e.target.value)} placeholder="Your team name" maxLength={40} aria-label="Team name" />}
+      {kind === "house" && (
+        <div role="radiogroup" aria-label="Your house" className="grid grid-cols-2 gap-2">
+          {houses.map((h) => (
+            <button key={h} type="button" role="radio" aria-checked={house === h} onClick={() => setHouse(h)} className={cn("rounded-md border px-3 py-2 text-sm", house === h ? "border-primary bg-primary text-primary-foreground" : "bg-card")}>
+              {h}
+            </button>
+          ))}
+        </div>
+      )}
       {m.isError && <p role="alert" className="text-red-700">{errorMessage(m.error)}</p>}
-      <Button disabled={m.isPending}>Register</Button>
+      <Button disabled={m.isPending || !ready}>{kind === "individual" ? "Enter the competition" : "Register"}</Button>
     </form>
   );
 }

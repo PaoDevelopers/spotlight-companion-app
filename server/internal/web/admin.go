@@ -34,6 +34,8 @@ type eventBody struct {
 	Host        string `json:"host"`
 	// SignupEnabled is a pointer so that older clients that don't send it keep sign-up on.
 	SignupEnabled *bool `json:"signupEnabled"`
+	// Competition is "", "individual", "team" or "house".
+	Competition string `json:"competition"`
 }
 
 func (b eventBody) input() (app.EventInput, error) {
@@ -43,7 +45,7 @@ func (b eventBody) input() (app.EventInput, error) {
 		return app.EventInput{}, app.ErrInvalid
 	}
 	return app.EventInput{Title: b.Title, Subject: b.Subject, Description: b.Description, Venue: b.Venue, StartsAt: st, EndsAt: en, Capacity: b.Capacity,
-		ImageURL: b.ImageURL, Host: b.Host, NoSignup: b.SignupEnabled != nil && !*b.SignupEnabled}, nil
+		ImageURL: b.ImageURL, Host: b.Host, NoSignup: b.SignupEnabled != nil && !*b.SignupEnabled, Competition: b.Competition}, nil
 }
 
 func (s *Server) adminEvents(w http.ResponseWriter, r *http.Request, u app.User) {
@@ -93,8 +95,13 @@ func (s *Server) adminEvent(w http.ResponseWriter, r *http.Request, u app.User) 
 		s.serverError(w, r, err)
 		return
 	}
+	entries, err := s.app.CompetitionEntryCount(r.Context(), id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	tag := token.MakeTag(s.app.Cfg.Secret, token.KindEvent, id)
-	writeJSON(w, http.StatusOK, map[string]any{"event": ev, "attendees": att, "signups": signups, "tagToken": tag, "tagUrl": s.app.Cfg.PublicURL + "/c/" + tag})
+	writeJSON(w, http.StatusOK, map[string]any{"event": ev, "attendees": att, "signups": signups, "competitionEntries": entries, "tagToken": tag, "tagUrl": s.app.Cfg.PublicURL + "/c/" + tag})
 }
 
 func (s *Server) adminUpdateEvent(w http.ResponseWriter, r *http.Request, u app.User) {
@@ -311,25 +318,41 @@ func (s *Server) adminCompetitions(w http.ResponseWriter, r *http.Request, u app
 	writeJSON(w, http.StatusOK, map[string]any{"events": events, "competitions": views})
 }
 
-func (s *Server) adminCreateCompetition(w http.ResponseWriter, r *http.Request, u app.User) {
+// adminAddEntry enters a student in a competition by hand: for someone with no phone, or a wrong or missed sign-up.
+func (s *Server) adminAddEntry(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
 	var in struct {
-		EventID int64  `json:"eventId"`
-		Name    string `json:"name"`
-		IsTeam  bool   `json:"isTeam"`
+		UserID int64  `json:"userId"`
+		Team   string `json:"team"`
+		House  string `json:"house"`
 	}
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if _, err := s.app.Event(r.Context(), in.EventID); err != nil {
+	if _, err := s.app.UserByID(r.Context(), in.UserID); err != nil {
 		s.appError(w, r, app.ErrInvalid)
 		return
 	}
-	c, err := s.app.CreateCompetition(r.Context(), in.EventID, in.Name, in.IsTeam)
-	if err != nil {
+	if err := s.app.Register(r.Context(), id, in.UserID, in.Team, in.House); err != nil {
 		s.appError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, c)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) adminDeleteEntry(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := s.app.DeleteEntry(r.Context(), id); err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) adminUpdateEntry(w http.ResponseWriter, r *http.Request, u app.User) {
@@ -567,18 +590,6 @@ func (s *Server) adminDeleteExhibit(w http.ResponseWriter, r *http.Request, u ap
 		return
 	}
 	if err := s.app.DeleteExhibit(r.Context(), id); err != nil {
-		s.appError(w, r, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) adminDeleteCompetition(w http.ResponseWriter, r *http.Request, u app.User) {
-	id, ok := pathID(w, r, "id")
-	if !ok {
-		return
-	}
-	if err := s.app.DeleteCompetition(r.Context(), id); err != nil {
 		s.appError(w, r, err)
 		return
 	}

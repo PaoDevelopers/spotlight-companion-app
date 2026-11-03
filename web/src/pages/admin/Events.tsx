@@ -44,13 +44,13 @@ export function AdminEvents() {
       {upcoming.length > 0 && (
         <section className="space-y-2">
           <h2 className="font-semibold">Upcoming and happening now</h2>
-          {upcoming.map(row)}
+          <div className="grid gap-2 lg:grid-cols-2">{upcoming.map(row)}</div>
         </section>
       )}
       {past.length > 0 && (
         <section className="space-y-2">
           <h2 className="font-semibold text-muted-foreground">Past</h2>
-          {past.map(row)}
+          <div className="grid gap-2 lg:grid-cols-2">{past.map(row)}</div>
         </section>
       )}
     </div>
@@ -161,6 +161,8 @@ export function AdminEventDetail() {
         {stat("Still expected", String(waiting.length))}
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-6">
       <StudentDesk eventId={id!} signedUp={signedIds} arrived={arrivedIds} onChange={refresh} />
 
       <section className={panel}>
@@ -188,6 +190,8 @@ export function AdminEventDetail() {
         )}
       </section>
 
+        </div>
+        <div className="space-y-6">
       <section className={panel}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Checked in ({attendees.length}{e.capacity ? ` / ${e.capacity}` : ""})</h2>
@@ -209,6 +213,9 @@ export function AdminEventDetail() {
         <code className="block break-all text-xs">{tagUrl}</code>
         <div className="mt-2"><QrImage text={tagUrl} size={160} /></div>
       </section>
+        </div>
+      </div>
+
       <button
         className="text-red-700 underline"
         onClick={() => { if (window.confirm(`Delete “${e.title}” and its check-ins, sign-ups and competitions? This cannot be undone.`)) del.mutate(); }}

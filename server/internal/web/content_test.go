@@ -93,7 +93,7 @@ func TestDeleteExhibitCompetitionAndChemistry(t *testing.T) {
 	// a chemistry event and exhibit can be created, and the student filter finds them
 	start := time.Now().Add(48 * time.Hour).UTC()
 	ev := map[string]any{"title": "Reactions", "subject": "chemistry", "startsAt": start.Format(time.RFC3339), "endsAt": start.Add(time.Hour).Format(time.RFC3339)}
-	created := decode[struct{ ID int64 }](t, teacher.mustStatus(201, "POST", "/api/admin/events", ev))
+	teacher.mustStatus(201, "POST", "/api/admin/events", ev)
 	found := decode[[]struct{ Title string }](t, student.mustStatus(200, "GET", "/api/events?subject=chemistry", nil))
 	titles := map[string]bool{}
 	for _, f := range found {
@@ -107,7 +107,83 @@ func TestDeleteExhibitCompetitionAndChemistry(t *testing.T) {
 	ev["subject"] = "biology"
 	teacher.mustStatus(422, "POST", "/api/admin/events", ev)
 
-	comp := decode[struct{ ID int64 }](t, teacher.mustStatus(201, "POST", "/api/admin/competitions", map[string]any{"eventId": created.ID, "name": "Titration race"}))
-	teacher.mustStatus(204, "DELETE", "/api/admin/competitions/"+itoa(comp.ID), nil)
-	teacher.mustStatus(404, "DELETE", "/api/admin/competitions/"+itoa(comp.ID), nil)
+}
+
+func TestCompetitionToggleOnEventAndEntriesByHand(t *testing.T) {
+	_, teacher, student := seeded(t)
+	start := time.Now().Add(72 * time.Hour).UTC()
+	body := map[string]any{"title": "Sports Day", "subject": "both", "startsAt": start.Format(time.RFC3339), "endsAt": start.Add(3 * time.Hour).Format(time.RFC3339), "competition": "house"}
+	ev := decode[struct {
+		ID          int64
+		Competition *string
+	}](t, teacher.mustStatus(201, "POST", "/api/admin/events", body))
+	if ev.Competition == nil || *ev.Competition != "house" {
+		t.Fatalf("event should say it is a house competition: %+v", ev)
+	}
+	view := decode[struct {
+		Competitions []struct {
+			ID     int64
+			Kind   string
+			Houses []string
+		}
+	}](t, student.mustStatus(200, "GET", "/api/events/"+itoa(ev.ID), nil))
+	if len(view.Competitions) != 1 || view.Competitions[0].Kind != "house" || len(view.Competitions[0].Houses) != 4 {
+		t.Fatalf("%+v", view)
+	}
+	cid := view.Competitions[0].ID
+	student.mustStatus(422, "POST", "/api/competitions/"+itoa(cid)+"/register", map[string]string{})
+	student.mustStatus(204, "POST", "/api/competitions/"+itoa(cid)+"/register", map[string]string{"house": "Winter"})
+
+	// a teacher enters a student who has no phone, and removes a wrong entry
+	hits := decode[[]struct{ ID int64 }](t, teacher.mustStatus(200, "GET", "/api/admin/students?q=student", nil))
+	if len(hits) == 0 {
+		t.Fatal("demo student not found")
+	}
+	teacher.mustStatus(204, "POST", "/api/admin/competitions/"+itoa(cid)+"/entries", map[string]any{"userId": hits[0].ID, "house": "Summer"})
+	teacher.mustStatus(422, "POST", "/api/admin/competitions/"+itoa(cid)+"/entries", map[string]any{"userId": hits[0].ID, "house": "Nope"})
+	teacher.mustStatus(422, "POST", "/api/admin/competitions/"+itoa(cid)+"/entries", map[string]any{"userId": 99999, "house": "Summer"})
+	student.mustStatus(403, "POST", "/api/admin/competitions/"+itoa(cid)+"/entries", map[string]any{"userId": hits[0].ID, "house": "Summer"})
+	comps := decode[struct {
+		Competitions []struct{ Entries []struct{ ID int64 } }
+	}](t, teacher.mustStatus(200, "GET", "/api/admin/competitions", nil))
+	var entryID int64
+	for _, c := range comps.Competitions {
+		for _, e := range c.Entries {
+			entryID = e.ID
+		}
+	}
+	if entryID == 0 {
+		t.Fatal("no entry to delete")
+	}
+	teacher.mustStatus(204, "DELETE", "/api/admin/entries/"+itoa(entryID), nil)
+	teacher.mustStatus(404, "DELETE", "/api/admin/entries/"+itoa(entryID), nil)
+
+	// the leaderboard has a house board with all four houses
+	lb := decode[struct {
+		Competitions []struct {
+			Kind   string
+			Groups []struct{ Label string }
+		}
+	}](t, student.mustStatus(200, "GET", "/api/leaderboard", nil))
+	var houseBoard bool
+	for _, c := range lb.Competitions {
+		if c.Kind == "house" && len(c.Groups) == 4 {
+			houseBoard = true
+		}
+	}
+	if !houseBoard {
+		t.Fatalf("leaderboard: %+v", lb)
+	}
+
+	// the admin event view says how many entries turning the competition off would delete
+	adm := decode[struct{ CompetitionEntries int64 }](t, teacher.mustStatus(200, "GET", "/api/admin/events/"+itoa(ev.ID), nil))
+	if adm.CompetitionEntries < 0 {
+		t.Fatal("entry count missing")
+	}
+	body["competition"] = ""
+	teacher.mustStatus(200, "PUT", "/api/admin/events/"+itoa(ev.ID), body)
+	after := decode[struct{ Competitions []struct{ ID int64 } }](t, student.mustStatus(200, "GET", "/api/events/"+itoa(ev.ID), nil))
+	if len(after.Competitions) != 0 {
+		t.Fatalf("competition should be gone: %+v", after)
+	}
 }

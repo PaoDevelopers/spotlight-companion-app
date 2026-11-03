@@ -26,7 +26,9 @@ export interface Event {
   host: string | null;
   signupEnabled: boolean;
   signupCount: number;
+  competition: CompetitionKind | null;
 }
+export type CompetitionKind = "individual" | "team" | "house";
 export interface Signup {
   userId: number;
   name: string;
@@ -64,8 +66,12 @@ export interface AwardResult {
 }
 export interface MyCompetition {
   entryId: number;
+  eventId: number;
   competition: string;
   event: string;
+  kind: CompetitionKind;
+  team: string | null;
+  house: string | null;
   status: string;
   score: number | null;
   rank: number | null;
@@ -77,6 +83,7 @@ export interface Entry {
   name: string;
   className: string;
   teamName: string | null;
+  house: string | null;
   status: string;
   score: number | null;
   rank: number | null;
@@ -93,4 +100,30 @@ export interface ScanResult {
   ok: boolean;
   message: string;
   href?: string;
+}
+
+export interface BoardRow {
+  id: number;
+  label: string;
+  team: string | null;
+  house: string | null;
+  status: string;
+  score: number | null;
+  rank: number | null;
+}
+export interface BoardGroup {
+  label: string;
+  rank: number | null;
+  score: number | null;
+  count: number;
+  members?: string[];
+}
+export interface Board {
+  id: number;
+  eventId: number;
+  name: string;
+  event: string;
+  kind: CompetitionKind;
+  rows: BoardRow[];
+  groups: BoardGroup[];
 }

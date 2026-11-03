@@ -82,7 +82,7 @@ export default function AdminExhibits() {
       </form>
       <FormError error={remove.error} />
       <p className="text-sm text-muted-foreground">Print a QR (or write the URL to an NFC tag) for each exhibit and place it at the installation.</p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {q.data?.map((x) => (
           <div key={x.id} className="rounded-lg bg-card p-3 text-center shadow-sm">
             <b>{x.title}</b>

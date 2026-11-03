@@ -16,8 +16,9 @@ export function Exhibits() {
           {seen} of {list.length} visited. Scan the code at each installation to log it.
         </p>
       )}
+      <div className="grid gap-2 md:grid-cols-2">
       {list.map((x) => (
-        <Link key={x.id} to={`/exhibits/${x.slug}`} className="mb-2 block rounded-lg bg-card p-3 shadow-sm">
+        <Link key={x.id} to={`/exhibits/${x.slug}`} className="block rounded-lg bg-card p-3 shadow-sm">
           <span className="font-semibold">
             {x.visited ? "✅ " : ""}
             {x.title}
@@ -25,6 +26,7 @@ export function Exhibits() {
           <div className="text-sm text-muted-foreground">{x.summary}</div>
         </Link>
       ))}
+      </div>
     </div>
   );
 }
@@ -44,7 +46,7 @@ export function ExhibitDetail() {
     <article className="space-y-3">
       <h1 className="text-2xl font-bold">{x.title}</h1>
       <p className="text-muted-foreground">{x.summary}</p>
-      {x.imageUrl && <img src={x.imageUrl} alt={x.title} className="w-full rounded-lg" />}
+      {x.imageUrl && <img src={x.imageUrl} alt={x.title} className="w-full rounded-lg md:max-h-96 md:object-cover" />}
       <Prose>{x.bodyMd}</Prose>
     </article>
   );

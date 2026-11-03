@@ -224,19 +224,19 @@ func TestLeaderboardsRespectOptIn(t *testing.T) {
 	a := newApp(t)
 	e := mkEvent(t, a, "Hack", nil)
 	pub, priv := mkUser(t, a, "Pat", "p@x", true), mkUser(t, a, "Sam", "s@x", false)
-	c, err := a.CreateCompetition(ctx, e.ID, "Hackathon", false)
+	c, err := a.CreateCompetition(ctx, e.ID, "Hackathon", KindIndividual)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, u := range []User{pub, priv} {
-		if err := a.Register(ctx, c.ID, u.ID, ""); err != nil {
+		if err := a.Register(ctx, c.ID, u.ID, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := a.Register(ctx, c.ID, pub.ID, ""); err != nil {
+	if err := a.Register(ctx, c.ID, pub.ID, "", ""); err != nil {
 		t.Fatal("registering twice should be harmless:", err)
 	}
-	if err := a.Register(ctx, 999, pub.ID, ""); !errors.Is(err, ErrNotFound) {
+	if err := a.Register(ctx, 999, pub.ID, "", ""); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("unknown competition: %v", err)
 	}
 	entries, _ := a.Entries(ctx)

@@ -15,12 +15,9 @@ test("teacher adds pictures to an event and an exhibit, uses chemistry, deletes 
   await hideDevOverlay(page);
   await login(page, "teacher@demo.school");
 
-  // competitions: a clear message instead of a broken form when there is nothing to attach to is covered by the unit view;
-  // here the demo has events, so the form needs an event chosen
+  // competitions are set up on the event itself, and the results page says so
   await page.goto("/admin/competitions");
-  await page.fill('input[name="name"]', "Titration Race");
-  await page.getByRole("button", { name: "Create" }).click(); // no event chosen: the browser blocks it
-  await expect(page.getByRole("heading", { name: "Titration Race" })).toHaveCount(0);
+  await expect(page.getByText(/tick This event is a competition/)).toBeVisible();
 
   // an event with chemistry and two pictures inside the description
   await page.goto("/admin/events/new");

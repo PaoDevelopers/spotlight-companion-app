@@ -67,7 +67,7 @@ sign-in; other domains are refused.
 `GET /api/events?subject=physics|cs` → `[Event]` ordered by start (a subject filter also includes `both`).
 `Event` = `{id,title,subject,description,venue|null,startsAt,endsAt,capacity|null}`.
 
-`GET /api/events/{id}` → `{"event":Event,"checkedIn":bool,"signedUp":bool,"competitions":[{id,eventId,name,isTeam,myStatus|null}]}`.
+`GET /api/events/{id}` → `{"event":Event,"checkedIn":bool,"signedUp":bool,"competitions":[{id,eventId,name,isTeam,kind,houses?,myStatus|null}]}`.
 `myStatus` is `null` when the student is not registered.
 `PUT /api/events/{id}/signup` → 204: reserve a place (harmless to repeat). `409 full` when the places are taken, `409 signup_closed`
 when sign-up is off or the event is over. `DELETE /api/events/{id}/signup` → 204. A signed-up student keeps their place at
@@ -108,7 +108,8 @@ Check-in codes contain dots, dashes and underscores; do not treat them as file n
 - `GET /api/admin/events` → `[Event]`
 - `POST /api/admin/events` `{title,subject,description,venue,host,imageUrl,startsAt,endsAt,capacity|null,signupEnabled}` → 201 `Event`
   (`subject` is `physics`, `chemistry`, `cs` or `both` ("both" = a mix of several, shown as Mixed); end must be after start; capacity > 0 or null; `description` is Markdown;
-  `imageUrl` must be `https://...` or a `/path`; `signupEnabled` defaults to true when omitted). Invalid → `422 invalid`.
+  `imageUrl` must be `https://...` or a `/path`; `signupEnabled` defaults to true when omitted; `competition` is `""` (not a competition),
+  `individual`, `team` or `house`: see Competitions below). Invalid → `422 invalid`.
   `Event` = `{id,title,subject,description,venue|null,startsAt,endsAt,capacity|null,imageUrl|null,host|null,signupEnabled,signupCount}`.
 - `GET /api/admin/events/{id}` → `{"event":Event,"attendees":[{userId,name,className,method,at}],"signups":[{userId,name,email,className,byStaff,at,checkedIn}],"tagToken","tagUrl"}`.
   `tagUrl` is the permanent link to write to an NFC tag or print as a QR code for that event.
@@ -138,12 +139,24 @@ Check-in codes contain dots, dashes and underscores; do not treat them as file n
 - `DELETE /api/admin/exhibits/{id}` → 204 (its visits, votes and scores go with it; its printed QR stops working). Unknown id → 404.
 
 **Competitions**
-- `GET /api/admin/competitions` → `{"events":[Event],"competitions":[{id,eventId,name,isTeam,entries:[Entry]}]}`.
-  `Entry` = `{id,competitionId,userId,name,className,teamName|null,status,score|null,rank|null,notes|null}`.
-- `POST /api/admin/competitions` `{eventId,name,isTeam}` → 201.
-- `DELETE /api/admin/competitions/{id}` → 204 (all entries go with it).
+
+A competition belongs to exactly one event and is switched on and off with the event's `competition` field (create or `PUT` the event).
+It is named after the event. There are three kinds: `individual` (each student is scored alone), `team` (a student enters under a team name)
+and `house` (a student enters for Spring, Summer, Autumn or Winter; the house's points are the sum of its entrants' scores).
+Changing the kind keeps the entries; setting `competition` to `""` deletes the competition **and all its entries**
+(`GET /api/admin/events/{id}` returns `competitionEntries`, the number that would be lost, so a client can ask first).
+
+- `GET /api/admin/competitions` → `{"events":[Event],"competitions":[{id,eventId,name,isTeam,kind,houses?,entries:[Entry]}]}`.
+  `Entry` = `{id,competitionId,userId,name,className,teamName|null,house|null,status,score|null,rank|null,notes|null}`.
 - `PUT /api/admin/entries/{id}` `{status,score|null,rank|null,notes|null}` → 204. `status` is one of `registered`,
-  `competing`, `advanced`, `eliminated`, `finished`.
+  `competing`, `advanced`, `eliminated`, `finished`. `DELETE /api/admin/entries/{id}` → 204 (removes a wrong or withdrawn entry).
+- `POST /api/admin/competitions/{id}/entries` `{"userId","team","house"}` → 204: enter a student by hand (for example one without a phone).
+  Same rules as a student's own entry.
+- Student side: `GET /api/events/{id}` lists `competitions:[{id,name,kind,houses?,myStatus|null}]`;
+  `POST /api/competitions/{id}/register` `{"team","house"}` → 204 (`422 invalid` if a team name or a valid house is missing for that kind).
+- `GET /api/leaderboard` → `{"month":[...],"competitions":[Board]}` where `Board` = `{id,eventId,name,event,kind,rows:[{id,label,team,house,status,score,rank}],groups:[{label,rank,score,count,members?}]}`.
+  `rows` are individuals (labels respect each student's opt-in). For `team`, `groups` are the teams (best rank, best score, members); for `house`, `groups`
+  are all four houses ranked by total points (a house with no points is unranked). `rows` and `groups` are always lists, never null.
 
 **Awards**
 - `GET /api/admin/awards` → `{"exhibits":[{id,title,myScore|null}],"drafts":[AwardResult],"published":[AwardResult],"liveWinners":n}`.

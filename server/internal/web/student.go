@@ -120,12 +120,13 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, u app.User) {
 		return
 	}
 	var in struct {
-		Team string `json:"team"`
+		Team  string `json:"team"`
+		House string `json:"house"`
 	}
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if err := s.app.Register(r.Context(), id, u.ID, in.Team); err != nil {
+	if err := s.app.Register(r.Context(), id, u.ID, in.Team, in.House); err != nil {
 		s.appError(w, r, err)
 		return
 	}
@@ -250,13 +251,6 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request, u app.User) {
 	}
 }
 
-type compBoard struct {
-	ID    int64          `json:"id"`
-	Name  string         `json:"name"`
-	Event string         `json:"event"`
-	Rows  []app.BoardRow `json:"rows"`
-}
-
 func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request, u app.User) {
 	ctx := r.Context()
 	month, err := s.app.MonthLeaderboard(ctx, 20)
@@ -269,19 +263,19 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request, u app.User)
 		s.serverError(w, r, err)
 		return
 	}
-	boards := make([]compBoard, 0, len(comps))
+	boards := make([]app.Board, 0, len(comps))
 	for _, c := range comps {
-		rows, err := s.app.CompetitionLeaderboard(ctx, c.ID)
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
 		ev, err := s.app.Event(ctx, c.EventID)
 		if err != nil {
 			s.serverError(w, r, err)
 			return
 		}
-		boards = append(boards, compBoard{c.ID, c.Name, ev.Title, rows})
+		b, err := s.app.CompetitionBoard(ctx, c, ev.Title)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		boards = append(boards, b)
 	}
 	if month == nil {
 		month = []app.MonthRow{}

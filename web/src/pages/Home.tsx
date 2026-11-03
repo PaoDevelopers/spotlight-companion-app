@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
+import { kindLabel } from "@/lib/competition";
 import type { AwardResult, Event, MyCompetition } from "@/lib/types";
 
 interface HomeData {
@@ -34,27 +35,39 @@ export default function Home() {
           {d.competitions.length > 0 && (
             <section>
               <h2 className="mb-2 font-semibold">My competitions</h2>
+              <div className="grid gap-2 md:grid-cols-2">
               {d.competitions.map((c) => (
-                <Card key={c.entryId} className="mb-2">
-                  <CardContent>
-                    {c.competition} · <b>{c.status}</b>
+                <Link key={c.entryId} to={`/events/${c.eventId}`} className="block rounded-lg bg-card p-3 shadow-sm">
+                  <div className="font-semibold">{c.event}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {kindLabel(c.kind)}
+                    {c.team && ` · team ${c.team}`}
+                    {c.house && ` · ${c.house} house`}
+                  </div>
+                  <div className="text-sm">
+                    <b>{c.status}</b>
                     {c.rank ? ` · rank ${c.rank}` : ""}
-                  </CardContent>
-                </Card>
+                    {c.score !== null ? ` · ${c.score} pts` : ""}
+                  </div>
+                </Link>
               ))}
+              </div>
             </section>
           )}
           <section>
             <h2 className="mb-2 font-semibold">Coming up</h2>
             {d.upcoming.length === 0 && <p className="text-muted-foreground">No upcoming events.</p>}
+            <div className="grid gap-2 md:grid-cols-2">
             {d.upcoming.map((e) => (
-              <Link key={e.id} to={`/events/${e.id}`} className="mb-2 block rounded-lg bg-card p-3 shadow-sm">
+              <Link key={e.id} to={`/events/${e.id}`} className="block rounded-lg bg-card p-3 shadow-sm">
                 <div className="font-semibold">{e.title}</div>
                 <div className="text-sm text-muted-foreground">
-                  {fmtDateTime(e.startsAt)} · {e.venue}
+                  {fmtDateTime(e.startsAt)}
+                  {e.venue && ` · ${e.venue}`}
                 </div>
               </Link>
             ))}
+            </div>
           </section>
         </>
       )}

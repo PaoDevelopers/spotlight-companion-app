@@ -29,11 +29,11 @@ test("student pages render and work at phone size", async ({ page }) => {
   // Event detail with competition registration
   await page.goto("/events");
   await page.getByText("Hackathon").first().click();
-  await expect(page.getByText("Competition: Hackathon")).toBeVisible();
-  await page.getByRole("button", { name: "Register" }).click();
-  await expect(page.getByText("Registered for Hackathon")).toBeVisible();
+  await expect(page.getByText(GO ? "Competition · Individual" : "Competition: Hackathon")).toBeVisible();
+  await page.getByRole("button", { name: GO ? "Enter the competition" : "Register" }).click();
+  await expect(page.getByText(GO ? "You're entered in the competition" : "Registered for Hackathon")).toBeVisible();
   await page.goto("/");
-  await expect(page.getByText(/Hackathon · registered/)).toBeVisible();
+  await expect(GO ? page.getByRole("link", { name: /Hackathon[\s\S]*registered/ }) : page.getByText(/Hackathon · registered/)).toBeVisible();
   await shot("event-detail");
 
   // Exhibits: markdown renders, vote toggles

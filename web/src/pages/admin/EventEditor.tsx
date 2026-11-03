@@ -8,10 +8,11 @@ import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { Prose } from "@/components/Prose";
 import { CoverImageField } from "@/components/CoverImageField";
 import { SUBJECTS } from "@/lib/subjects";
+import { KINDS } from "@/lib/competition";
 import { api } from "@/lib/api";
 import { fmtLongDateTime, fromLocalInput, toLocalInput } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Event, Subject } from "@/lib/types";
+import type { CompetitionKind, Event, Subject } from "@/lib/types";
 import { FormError, SaveButton, panel } from "./shared";
 
 interface Draft {
@@ -25,13 +26,14 @@ interface Draft {
   signupEnabled: boolean;
   imageUrl: string;
   description: string;
+  competition: CompetitionKind | ""; // "" = not a competition
 }
 
-const EMPTY: Draft = { title: "", subject: "both", host: "", venue: "", startsAt: "", endsAt: "", capacity: "", signupEnabled: true, imageUrl: "", description: "" };
+const EMPTY: Draft = { title: "", subject: "both", host: "", venue: "", startsAt: "", endsAt: "", capacity: "", signupEnabled: true, imageUrl: "", description: "", competition: "" };
 
 const fromEvent = (e: Event): Draft => ({
   title: e.title, subject: e.subject, host: e.host ?? "", venue: e.venue ?? "", startsAt: toLocalInput(e.startsAt), endsAt: toLocalInput(e.endsAt),
-  capacity: e.capacity ? String(e.capacity) : "", signupEnabled: e.signupEnabled, imageUrl: e.imageUrl ?? "", description: e.description,
+  capacity: e.capacity ? String(e.capacity) : "", signupEnabled: e.signupEnabled, imageUrl: e.imageUrl ?? "", description: e.description, competition: e.competition ?? "",
 });
 
 const minutesBetween = (a: string, b: string) => (a && b ? Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000) : 0);
@@ -65,7 +67,7 @@ export function AdminEventEdit() {
   const sourceId = id ?? params.get("from");
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const source = useQuery({ queryKey: ["admin-event", sourceId], queryFn: () => api.get<{ event: Event }>(`/api/admin/events/${sourceId}`), enabled: !!sourceId });
+  const source = useQuery({ queryKey: ["admin-event", sourceId], queryFn: () => api.get<{ event: Event; competitionEntries: number }>(`/api/admin/events/${sourceId}`), enabled: !!sourceId });
   const [d, setD] = useState<Draft>(EMPTY);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -103,9 +105,11 @@ export function AdminEventEdit() {
   function submit(ev: FormEvent) {
     ev.preventDefault();
     if (bad) return;
+    const entries = id ? source.data?.competitionEntries ?? 0 : 0;
+    if (d.competition === "" && source.data?.event.competition && entries > 0 && !window.confirm(`Turning the competition off deletes its ${entries} ${entries === 1 ? "entry" : "entries"} and results. Continue?`)) return;
     save.mutate({
       title: d.title, subject: d.subject, host: d.host, venue: d.venue, description: d.description, imageUrl: d.imageUrl,
-      startsAt: fromLocalInput(d.startsAt), endsAt: fromLocalInput(d.endsAt), capacity: d.capacity.trim() ? Number(d.capacity) : null, signupEnabled: d.signupEnabled,
+      startsAt: fromLocalInput(d.startsAt), endsAt: fromLocalInput(d.endsAt), capacity: d.capacity.trim() ? Number(d.capacity) : null, signupEnabled: d.signupEnabled, competition: d.competition,
     });
   }
 
@@ -169,6 +173,36 @@ export function AdminEventEdit() {
             </div>
           </Section>
 
+          <Section title="Competition" hint="Tick this if students compete at this event. Scores and results are entered afterwards under Results, and appear on the Board.">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="isCompetition"
+                checked={d.competition !== ""}
+                onChange={(e) => set("competition", e.target.checked ? "individual" : "")}
+                className="mt-1"
+              />
+              <b>This event is a competition</b>
+            </label>
+            {d.competition !== "" && (
+              <div role="radiogroup" aria-label="Type of competition" className="grid gap-2 sm:grid-cols-3">
+                {KINDS.map((k) => (
+                  <button
+                    key={k.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={d.competition === k.value}
+                    onClick={() => set("competition", k.value)}
+                    className={cn("rounded-md border p-3 text-left text-sm", d.competition === k.value ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-accent")}
+                  >
+                    <b className="block">{k.label}</b>
+                    <span className={cn("text-xs", d.competition === k.value ? "opacity-90" : "text-muted-foreground")}>{k.hint}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Section>
+
           <Section title="Places and sign-up">
             <Label text="Capacity (leave empty for no limit)">
               <Input name="capacity" type="number" min="1" value={d.capacity} onChange={(e) => set("capacity", e.target.value)} className="sm:w-48" />
@@ -200,6 +234,7 @@ export function AdminEventEdit() {
               </p>
               {d.host && <p className="text-sm">Hosted by {d.host}</p>}
               {d.description.trim() && <Prose className="text-sm">{d.description}</Prose>}
+              {d.competition && <p className="text-sm">🏁 Competition · {KINDS.find((k) => k.value === d.competition)?.label}</p>}
               <p className="text-xs text-muted-foreground">
                 {d.signupEnabled ? (d.capacity ? `Sign-up open · ${d.capacity} places` : "Sign-up open") : "No sign-up needed: just turn up"}
               </p>

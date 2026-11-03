@@ -28,6 +28,8 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
     await expect(page.locator('input[name="endsAt"]')).toHaveValue("2026-11-20T19:00"); // defaults to one hour
     await page.fill('input[name="endsAt"]', "2026-11-20T20:00");
     await page.fill('input[name="capacity"]', "30");
+    await page.getByLabel("This event is a competition").check(); // individual by default
+    await expect(page.getByRole("radio", { name: /Individual/ })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "Create event" }).click();
     await expect(page).toHaveURL(/\/admin\/events\/\d+$/); // the editor's preview also shows the title, so wait for the redirect
     eventId = Number(page.url().split("/").pop());
@@ -97,19 +99,22 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
   await shot("exhibits");
 
   // Competition: student registers, teacher records the result, student sees it
-  await page.goto("/admin/competitions");
-  await page.fill('input[name="name"]', "Physics Quiz");
-  await page.locator('select[name="eventId"]').selectOption({ label: "Lab Open Night (updated)" });
-  await page.getByRole("button", { name: "Create" }).click();
-  await expect(page.getByRole("heading", { name: "Physics Quiz" })).toBeVisible();
+  if (!GO) {
+    await page.goto("/admin/competitions");
+    await page.fill('input[name="name"]', "Physics Quiz");
+    await page.locator('select[name="eventId"]').selectOption({ label: "Lab Open Night (updated)" });
+    await page.getByRole("button", { name: "Create" }).click();
+    await expect(page.getByRole("heading", { name: "Physics Quiz" })).toBeVisible();
+  }
 
   const student = await (await browser.newContext()).newPage();
   await login(student, "student@demo.school");
   await student.goto(`/events/${eventId}`);
-  await student.getByRole("button", { name: "Register" }).click();
-  await expect(student.getByText("Registered for Physics Quiz")).toBeVisible();
+  await student.getByRole("button", { name: GO ? "Enter the competition" : "Register" }).click();
+  await expect(student.getByText(GO ? "You're entered in the competition" : "Registered for Physics Quiz")).toBeVisible();
 
   await page.goto("/admin/competitions");
+  if (GO) await expect(page.getByRole("heading", { name: "Lab Open Night (updated)" })).toBeVisible(); // named after its event
   const row = page.locator("form", { hasText: "Demo Student" }).last();
   await row.locator('select[name="status"]').selectOption("finished");
   await row.locator('input[name="score"]').fill("95");
@@ -119,7 +124,7 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
   await expect(page.locator('form:has-text("Demo Student") input[name="score"]').last()).toHaveValue("95");
   await shot("competitions");
   await student.goto("/");
-  await expect(student.getByText(/Physics Quiz · finished · rank 1/)).toBeVisible();
+  await expect(student.getByText(GO ? /finished · rank 1/ : /Physics Quiz · finished · rank 1/)).toBeVisible();
 
   // Awards: judge score, compute drafts, veto with reason
   await page.goto("/admin/awards");

@@ -22,6 +22,8 @@ type Event struct {
 	// SignupEnabled lets students reserve a place ahead of time. SignupCount is how many have.
 	SignupEnabled bool  `json:"signupEnabled"`
 	SignupCount   int64 `json:"signupCount"`
+	// Competition is null for an ordinary event, otherwise "individual", "team" or "house".
+	Competition *string `json:"competition"`
 }
 
 type EventInput struct {
@@ -36,9 +38,14 @@ type EventInput struct {
 	Host        string
 	// NoSignup switches advance sign-up off (the default is on).
 	NoSignup bool
+	// Competition turns the event into a competition: "", "individual", "team" or "house".
+	Competition string
 }
 
 func (in EventInput) validate() error {
+	if in.Competition != "" && !ValidKind(in.Competition) {
+		return ErrInvalid
+	}
 	if u := strings.TrimSpace(in.ImageURL); u != "" && !strings.HasPrefix(u, "https://") && !(strings.HasPrefix(u, "/") && !strings.HasPrefix(u, "//")) {
 		return ErrInvalid
 	}
@@ -55,13 +62,14 @@ func (in EventInput) validate() error {
 }
 
 const eventCols = `id, title, subject, description, venue, starts_at, ends_at, capacity, image_url, host, signup_enabled,
-	(SELECT COUNT(*) FROM event_signups WHERE event_id = events.id)`
+	(SELECT COUNT(*) FROM event_signups WHERE event_id = events.id),
+	(SELECT kind FROM competitions WHERE event_id = events.id ORDER BY id LIMIT 1)`
 
 func scanEvent(r interface{ Scan(...any) error }) (Event, error) {
 	var e Event
 	var s, en int64
 	var signup int
-	err := r.Scan(&e.ID, &e.Title, &e.Subject, &e.Description, &e.Venue, &s, &en, &e.Capacity, &e.ImageURL, &e.Host, &signup, &e.SignupCount)
+	err := r.Scan(&e.ID, &e.Title, &e.Subject, &e.Description, &e.Venue, &s, &en, &e.Capacity, &e.ImageURL, &e.Host, &signup, &e.SignupCount, &e.Competition)
 	e.SignupEnabled = signup == 1
 	e.StartsAt, e.EndsAt = Time(fromUnix(s)), Time(fromUnix(en))
 	return e, err
@@ -120,12 +128,19 @@ func (a *App) CreateEvent(ctx context.Context, in EventInput) (Event, error) {
 	if err := in.validate(); err != nil {
 		return Event{}, err
 	}
-	res, err := a.DB.Write.ExecContext(ctx, `INSERT INTO events (title, subject, description, venue, starts_at, ends_at, capacity, image_url, host, signup_enabled) VALUES (?, ?, ?, NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?)`,
-		strings.TrimSpace(in.Title), in.Subject, in.Description, in.Venue, unix(in.StartsAt), unix(in.EndsAt), in.Capacity, strings.TrimSpace(in.ImageURL), strings.TrimSpace(in.Host), b2i(!in.NoSignup))
+	var id int64
+	err := a.tx(ctx, func(t *sql.Tx) error {
+		res, err := t.ExecContext(ctx, `INSERT INTO events (title, subject, description, venue, starts_at, ends_at, capacity, image_url, host, signup_enabled) VALUES (?, ?, ?, NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?)`,
+			strings.TrimSpace(in.Title), in.Subject, in.Description, in.Venue, unix(in.StartsAt), unix(in.EndsAt), in.Capacity, strings.TrimSpace(in.ImageURL), strings.TrimSpace(in.Host), b2i(!in.NoSignup))
+		if err != nil {
+			return err
+		}
+		id, _ = res.LastInsertId()
+		return setCompetition(ctx, t, id, in.Competition, strings.TrimSpace(in.Title))
+	})
 	if err != nil {
 		return Event{}, err
 	}
-	id, _ := res.LastInsertId()
 	return a.Event(ctx, id)
 }
 
@@ -133,13 +148,19 @@ func (a *App) UpdateEvent(ctx context.Context, id int64, in EventInput) (Event, 
 	if err := in.validate(); err != nil {
 		return Event{}, err
 	}
-	res, err := a.DB.Write.ExecContext(ctx, `UPDATE events SET title=?, subject=?, description=?, venue=NULLIF(?, ''), starts_at=?, ends_at=?, capacity=?, image_url=NULLIF(?, ''), host=NULLIF(?, ''), signup_enabled=? WHERE id=?`,
-		strings.TrimSpace(in.Title), in.Subject, in.Description, in.Venue, unix(in.StartsAt), unix(in.EndsAt), in.Capacity, strings.TrimSpace(in.ImageURL), strings.TrimSpace(in.Host), b2i(!in.NoSignup), id)
+	err := a.tx(ctx, func(t *sql.Tx) error {
+		res, err := t.ExecContext(ctx, `UPDATE events SET title=?, subject=?, description=?, venue=NULLIF(?, ''), starts_at=?, ends_at=?, capacity=?, image_url=NULLIF(?, ''), host=NULLIF(?, ''), signup_enabled=? WHERE id=?`,
+			strings.TrimSpace(in.Title), in.Subject, in.Description, in.Venue, unix(in.StartsAt), unix(in.EndsAt), in.Capacity, strings.TrimSpace(in.ImageURL), strings.TrimSpace(in.Host), b2i(!in.NoSignup), id)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ErrNotFound
+		}
+		return setCompetition(ctx, t, id, in.Competition, strings.TrimSpace(in.Title))
+	})
 	if err != nil {
 		return Event{}, err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return Event{}, ErrNotFound
 	}
 	return a.Event(ctx, id)
 }

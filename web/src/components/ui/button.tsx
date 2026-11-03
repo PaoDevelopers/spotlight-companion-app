@@ -16,7 +16,7 @@ const buttonVariants = cva(
         vote: "bg-amber-400 text-slate-900 font-semibold hover:bg-amber-300",
         link: "text-primary underline underline-offset-4",
       },
-      size: { default: "h-10 px-4 py-2", sm: "h-8 px-3", lg: "h-12 px-6 text-base" },
+      size: { default: "h-10 px-4 py-2 pointer-coarse:h-11", sm: "h-8 px-3 pointer-coarse:h-10", lg: "h-12 px-6 text-base" },
     },
     defaultVariants: { variant: "default", size: "default" },
   },

@@ -93,7 +93,11 @@ Then check from a laptop: `https://spotlight.ykpaoschool.cn/healthz` shows `ok` 
 ### 5a. Load the school's student list (so teachers can find students who have not signed in)
 
 Without this, a student only exists in the app after their first sign-in, so a teacher cannot check in, enter in a competition or
-give an award to a student who has no phone or has never signed in. Load the school's list once:
+give an award to a student who has no phone or has never signed in. Load the school's list once.
+
+**Easiest: in the browser.** Sign in as an admin, open *Teacher portal* (the dashboard) and use **Load the school's student list**. Choose the
+school's `students.db` (or a CSV). It first shows how many students it found and how many would be added, and only loads when you press the
+button. The uploaded file is not kept. Or from the command line on the server:
 
 ```
 sudo -u spotlight /opt/spotlight/spotlight -config /etc/spotlight/spotlight.conf import-students --dry-run /path/to/students.db

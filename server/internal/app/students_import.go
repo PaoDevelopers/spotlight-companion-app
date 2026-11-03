@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"regexp"
 	"strings"
 	"unicode"
@@ -113,10 +115,21 @@ func (a *App) ImportStudents(ctx context.Context, recs []StudentRecord, dryRun b
 	return rep, err
 }
 
+func isSQLiteFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	head := make([]byte, 16)
+	n, _ := io.ReadFull(f, head)
+	return string(head[:n]) == "SQLite format 3\x00"
+}
+
 // ReadStudentsFile reads the school's student list: either the SQLite file the school system exports (a table
 // "students" with id and system_name) or a CSV with a header row naming id (or email), name and optionally class.
 func ReadStudentsFile(ctx context.Context, path string, studentDomain string) ([]StudentRecord, error) {
-	if strings.HasSuffix(strings.ToLower(path), ".csv") {
+	if !isSQLiteFile(path) { // decided by the file's first bytes, not its name: uploads have no useful name
 		return readStudentsCSV(path, studentDomain)
 	}
 	d, err := sql.Open("sqlite", "file:"+path+"?mode=ro&immutable=1")

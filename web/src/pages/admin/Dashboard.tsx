@@ -1,10 +1,90 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { FormError, SaveButton } from "./shared";
+
+interface ImportReport {
+  read: number;
+  added: number;
+  existing: number;
+  classFilled: number;
+  skipped: number;
+}
+
+/** Load the school's student list (students.db or a CSV). It checks the file first and shows counts, never names. */
+function LoadStudents() {
+  const qc = useQueryClient();
+  const picker = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<ImportReport | null>(null);
+  const [done, setDone] = useState<ImportReport | null>(null);
+  const send = async (f: File, dryRun: boolean) => {
+    const res = await fetch(`/api/admin/students/import${dryRun ? "?dryRun=1" : ""}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: f, credentials: "same-origin" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data.code ?? "error", data.error ?? "Could not read that file.");
+    return data as ImportReport;
+  };
+  const check = useMutation({ mutationFn: (f: File) => send(f, true), onSuccess: (r) => { setPreview(r); setDone(null); } });
+  const load = useMutation({
+    mutationFn: (f: File) => send(f, false),
+    onSuccess: (r) => { setDone(r); setPreview(null); setFile(null); qc.invalidateQueries({ queryKey: ["admin-stats"] }); qc.invalidateQueries({ queryKey: ["admin-students"] }); },
+  });
+  return (
+    <section className="space-y-2 rounded-lg bg-card p-4 shadow-sm">
+      <b>Load the school's student list</b>
+      <p className="text-sm text-muted-foreground">
+        So teachers can find students who have not signed in yet (to check them in, enter them in a competition or give an award). Choose the school's
+        <code> students.db</code> or a CSV with the columns <code>id,name,class</code>. Nothing is overwritten and no login codes are made; it is safe to load again.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" onClick={() => picker.current?.click()}>
+          {file ? "Choose another file" : "Choose a file…"}
+        </Button>
+        <input
+          ref={picker}
+          type="file"
+          aria-label="Student list file"
+          hidden
+          accept=".db,.csv,.sqlite,application/x-sqlite3,text/csv"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            e.target.value = ""; // so choosing the same file again (after fixing it, or to re-check) fires another change
+            setFile(f);
+            setPreview(null);
+            setDone(null);
+            check.reset();
+            load.reset();
+            if (f) check.mutate(f);
+          }}
+        />
+        {file && <span className="text-sm text-muted-foreground">{file.name}</span>}
+        {check.isPending && <span className="text-sm text-muted-foreground">Checking…</span>}
+      </div>
+      <FormError error={check.error ?? load.error} />
+      {preview && file && (
+        <div role="status" className="space-y-2 text-sm">
+          <p>
+            Found <b>{preview.read}</b> students: <b>{preview.added}</b> would be added, {preview.existing} already have an account
+            {preview.classFilled > 0 && <>, {preview.classFilled} would get a class</>}
+            {preview.skipped > 0 && <>, <span className="text-red-700">{preview.skipped} cannot be used (no id or name)</span></>}.
+          </p>
+          <SaveButton pending={load.isPending} pendingText="Loading…" onClick={() => load.mutate(file)} disabled={preview.added + preview.classFilled === 0}>
+            {preview.added + preview.classFilled === 0 ? "Nothing new to load" : `Load ${preview.added} students`}
+          </SaveButton>
+        </div>
+      )}
+      {done && (
+        <p role="status" className="text-sm text-emerald-700">
+          Loaded: {done.added} added, {done.existing} already had an account{done.classFilled > 0 ? `, ${done.classFilled} got a class` : ""}.
+        </p>
+      )}
+    </section>
+  );
+}
 
 export default function Dashboard() {
   const { me } = useAuth();
@@ -27,6 +107,7 @@ export default function Dashboard() {
           ))}
         </div>
       )}
+      {me?.role === "admin" && <LoadStudents />}
       {me?.role === "admin" && (
         <form
           onSubmit={(e) => {

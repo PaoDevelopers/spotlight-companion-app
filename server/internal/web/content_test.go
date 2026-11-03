@@ -2,9 +2,12 @@ package web
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/base64"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -222,5 +225,91 @@ func TestAwardsOverHTTP(t *testing.T) {
 	teacher.mustStatus(404, "DELETE", "/api/admin/awards/"+itoa(list.Awards[0].ID), nil)
 	if h := decode[home](t, student.mustStatus(200, "GET", "/api/home", nil)); len(h.Awards) != 0 {
 		t.Fatalf("deleted award still shown: %+v", h)
+	}
+}
+
+// teacherOnly signs in a second demo teacher who is not an admin.
+func teacherOnly(e *env) *client {
+	if _, err := e.app.DB.Write.Exec(`INSERT OR IGNORE INTO users (email, name, role) VALUES ('plain.teacher@ykpaoschool.cn', 'Plain Teacher', 'teacher')`); err != nil {
+		e.t.Fatal(err)
+	}
+	c := e.client()
+	if _, err := e.app.DB.Write.Exec(`UPDATE users SET login_code_hash = (SELECT login_code_hash FROM users WHERE email = 'student@demo.school') WHERE email = 'plain.teacher@ykpaoschool.cn'`); err != nil {
+		e.t.Fatal(err)
+	}
+	c.login("plain.teacher@ykpaoschool.cn", "DEMOCODE")
+	return c
+}
+
+func TestAdminUploadsTheStudentList(t *testing.T) {
+	e, teacher, student := seeded(t)
+	admin := e.client()
+	if _, err := e.app.DB.Write.Exec(`UPDATE users SET role = 'admin' WHERE email = 'teacher@demo.school'`); err != nil {
+		t.Fatal(err)
+	}
+	admin.login("teacher@demo.school", "DEMOCODE") // the demo teacher, now an admin
+	_ = teacher
+
+	// the school system's SQLite export, invented names
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "students.db")
+	d, err := sql.Open("sqlite", "file:"+dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`CREATE TABLE students (id TEXT PRIMARY KEY, english_name TEXT, chinese_name TEXT, system_name TEXT NOT NULL)`,
+		`INSERT INTO students VALUES ('s90001', '', '', 'Wong (Mei Ling 黄美玲) Amy')`,
+		`INSERT INTO students VALUES ('s90002', '', '', 'Chan (Tai Man 陳大文) Ben')`,
+	} {
+		if _, err := d.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d.Close()
+	dbBytes, _ := os.ReadFile(dbPath)
+
+	// only admins may load a student list
+	if res, _ := student.upload("/api/admin/students/import", dbBytes); res.StatusCode != 403 {
+		t.Fatalf("a student must not import: %d", res.StatusCode)
+	}
+	res, body := teacherOnly(e).upload("/api/admin/students/import", dbBytes)
+	_ = body
+	if res.StatusCode != 403 {
+		t.Fatalf("a teacher who is not an admin must not import: %d", res.StatusCode)
+	}
+
+	type report struct{ Read, Added, Existing, Skipped int }
+	res, body = admin.upload("/api/admin/students/import?dryRun=1", dbBytes)
+	if rep := decode[report](t, body); res.StatusCode != 200 || rep.Added != 2 {
+		t.Fatalf("dry run: %d %s", res.StatusCode, body)
+	}
+	if hits := decode[[]struct{ Name string }](t, admin.mustStatus(200, "GET", "/api/admin/students?q=amy", nil)); len(hits) != 0 {
+		t.Fatalf("a dry run must change nothing: %+v", hits)
+	}
+	res, body = admin.upload("/api/admin/students/import", dbBytes)
+	if rep := decode[report](t, body); res.StatusCode != 200 || rep.Added != 2 || rep.Read != 2 {
+		t.Fatalf("import: %d %s", res.StatusCode, body)
+	}
+	if strings.Contains(string(body), "Wong") || strings.Contains(string(body), "黄美玲") {
+		t.Fatalf("the answer must hold counts, not names: %s", body)
+	}
+	hits := decode[[]struct{ Name, Email string }](t, admin.mustStatus(200, "GET", "/api/admin/students?q=黄美玲", nil))
+	if len(hits) != 1 || hits[0].Email != "s90001@stu.ykpaoschool.cn" || hits[0].Name != "Mei Ling Wong 黄美玲 (Amy)" {
+		t.Fatalf("the loaded student should be findable by their Chinese name: %+v", hits)
+	}
+	if _, body = admin.upload("/api/admin/students/import", dbBytes); decode[report](t, body).Added != 0 {
+		t.Fatalf("a repeat must add nobody: %s", body)
+	}
+
+	// a CSV works too, and the upload is not kept on disk or in the database
+	if _, body = admin.upload("/api/admin/students/import", []byte("id,name,class\ns90003,Pat Doe,10C\n")); decode[report](t, body).Added != 1 {
+		t.Fatalf("csv: %s", body)
+	}
+	// things that are not student lists are refused
+	for name, payload := range map[string][]byte{"text": []byte("hello"), "empty": {}, "wrong csv": []byte("a,b\n1,2\n"), "png": tinyPNG} {
+		if res, _ := admin.upload("/api/admin/students/import", payload); res.StatusCode != 422 {
+			t.Errorf("%s should be refused with 422, got %d", name, res.StatusCode)
+		}
 	}
 }

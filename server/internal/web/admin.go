@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -573,4 +574,42 @@ func (s *Server) adminUploadImage(w http.ResponseWriter, r *http.Request, u app.
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "url": "/api/images/" + strconv.FormatInt(id, 10)})
+}
+
+const maxStudentFile = 5 << 20
+
+// adminImportStudents loads the school's student list from an uploaded file (the school system's students.db or a CSV).
+// Admins only. With ?dryRun=1 it only reports what it would do. The answer holds counts, never names.
+func (s *Server) adminImportStudents(w http.ResponseWriter, r *http.Request, u app.User) {
+	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxStudentFile))
+	if err != nil {
+		fail(w, http.StatusRequestEntityTooLarge, "too_large", "that file is too large to be a student list")
+		return
+	}
+	f, err := os.CreateTemp("", "students-*")
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	defer os.Remove(f.Name()) // the uploaded list is not kept anywhere
+	if err := os.Chmod(f.Name(), 0o600); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	_, werr := f.Write(data)
+	if cerr := f.Close(); werr != nil || cerr != nil {
+		s.serverError(w, r, errors.Join(werr, cerr))
+		return
+	}
+	recs, err := app.ReadStudentsFile(r.Context(), f.Name(), s.app.Cfg.StudentDomain)
+	if err != nil || len(recs) == 0 || len(recs) > 20000 {
+		fail(w, http.StatusUnprocessableEntity, "invalid", "That doesn't look like a student list. Use the school's students.db, or a CSV whose first row names the columns id (or email), name and optionally class.")
+		return
+	}
+	rep, err := s.app.ImportStudents(r.Context(), recs, r.URL.Query().Get("dryRun") == "1")
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rep)
 }

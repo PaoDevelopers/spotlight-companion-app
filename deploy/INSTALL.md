@@ -90,6 +90,27 @@ Then check from a laptop: `https://spotlight.ykpaoschool.cn/healthz` shows `ok` 
 3. Create events, exhibits (print each exhibit's QR or write its link to an NFC tag) and competitions.
 4. **Do not print final QR codes or write NFC tags until `PUBLIC_URL` and `CHECKIN_SECRET` are final.**
 
+### 5a. Load the school's student list (so teachers can find students who have not signed in)
+
+Without this, a student only exists in the app after their first sign-in, so a teacher cannot check in, enter in a competition or
+give an award to a student who has no phone or has never signed in. Load the school's list once:
+
+```
+sudo -u spotlight /opt/spotlight/spotlight -config /etc/spotlight/spotlight.conf import-students --dry-run /path/to/students.db
+sudo -u spotlight /opt/spotlight/spotlight -config /etc/spotlight/spotlight.conf import-students /path/to/students.db
+```
+
+- The file is the school system's `students.db` (a table `students` with `id` and `system_name`), or a CSV with a header row `id,name,class`
+  (or `email,name,class`). The email is built from the id: `s10001` becomes `s10001@stu.ykpaoschool.cn`.
+- It prints counts only. It is safe to run again whenever the list changes: it adds missing students, never changes an existing
+  person's name or role, and only fills in a class that is empty.
+- It creates **no login codes**. With Microsoft sign-in a student is matched to their loaded account by email when they first sign in
+  (Microsoft's name then replaces the loaded one). In `roster` mode, print codes with the Roster page as before.
+- The school's list has no class column, so students show as "Anonymous" on public lists until a class is set. A CSV with a `class` column,
+  or the Roster page, fills it in.
+- **Keep the file out of the repository and off the Vercel preview** (real students; the preview must only ever hold fake data). Delete the
+  copy on the server after loading, and remember the database it fills is covered by the nightly backup.
+
 ## 6. Switch on Microsoft sign-in (when IT sends the client ID)
 
 IT has created the registration (client ID below; neither ID is a secret). In `/etc/spotlight/spotlight.conf` set

@@ -18,3 +18,9 @@ server/internal/ui/dist/*
 test-results
 playwright-report
 .vercel
+
+# Real student lists must never be committed (this repository is public). Keep them outside the checkout.
+students*.db
+students*.csv
+*.students.*
+roster*.csv

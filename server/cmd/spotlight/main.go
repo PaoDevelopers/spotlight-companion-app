@@ -3,6 +3,7 @@
 //	spotlight [-config file] serve        run the server (default)
 //	spotlight [-config file] seed-demo    load FAKE demo data and print its login codes
 //	spotlight [-config file] backup FILE  write a consistent copy of the database
+//	spotlight [-config file] import-students [--dry-run] FILE  add the school's student list as accounts (no login codes)
 //	spotlight version
 package main
 
@@ -71,6 +72,8 @@ func run(cmd, cfgPath string, log *slog.Logger) error {
 		}
 		fmt.Println("backup written to", dest)
 		return nil
+	case "import-students":
+		return importStudents(ctx, a, cfg.StudentDomain, flag.Args()[1:])
 	case "seed-demo":
 		codes, err := a.SeedDemo(ctx)
 		if err != nil {
@@ -133,4 +136,40 @@ func serve(ctx context.Context, a *app.App, log *slog.Logger) error {
 	shutdown, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return srv.Shutdown(shutdown)
+}
+
+// importStudents loads the school's student list so teachers can find students who have never signed in.
+// It prints counts only, never names: the list is about real students.
+func importStudents(ctx context.Context, a *app.App, domain string, args []string) error {
+	dry, path := false, ""
+	for _, x := range args {
+		switch {
+		case x == "--dry-run" || x == "-n":
+			dry = true
+		case path == "":
+			path = x
+		default:
+			return errors.New("usage: spotlight import-students [--dry-run] FILE")
+		}
+	}
+	if path == "" {
+		return errors.New("usage: spotlight import-students [--dry-run] FILE (a students.db from the school system, or a CSV with the columns id,name,class)")
+	}
+	recs, err := app.ReadStudentsFile(ctx, path, domain)
+	if err != nil {
+		return err
+	}
+	rep, err := a.ImportStudents(ctx, recs, dry)
+	if err != nil {
+		return err
+	}
+	verb := "imported"
+	if dry {
+		verb = "would import (dry run, nothing changed)"
+	}
+	fmt.Printf("%s: %d read, %d added, %d already had an account, %d got a class, %d skipped\n", verb, rep.Read, rep.Added, rep.Existing, rep.ClassFilled, rep.Skipped)
+	if rep.Skipped > 0 {
+		fmt.Println("skipped rows have no usable id or name; check the file")
+	}
+	return nil
 }

@@ -35,7 +35,7 @@ needed are in `docs/IT-REQUEST.md`.
 ## What data the app keeps
 | Data | Source | Notes |
 |---|---|---|
-| Name, school email | the Microsoft sign-in token | nothing else is requested |
+| Name, school email | the Microsoft sign-in token, and optionally the school's student list (id and name, loaded once by a command on the server) | nothing else is requested from Microsoft; the list lets teachers find a student who has not signed in yet |
 | Class | the roster the school gives us | optional |
 | Check-ins, exhibit visits, competition entries and results | created by using the app | |
 | Awards (title, student, optional reason) | chosen and typed in by teachers | shown to the student; the public list follows the same name-privacy switch as the leaderboard |

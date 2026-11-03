@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { CoverThumb } from "@/components/CoverThumb";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
@@ -60,11 +61,14 @@ export default function Home() {
             {d.upcoming.length === 0 && <p className="text-muted-foreground">No upcoming events.</p>}
             <div className="grid gap-2 md:grid-cols-2">
             {d.upcoming.map((e) => (
-              <Link key={e.id} to={`/events/${e.id}`} className="block rounded-lg bg-card p-3 shadow-sm">
-                <div className="font-semibold">{e.title}</div>
-                <div className="text-sm text-muted-foreground">
-                  {fmtDateTime(e.startsAt)}
-                  {e.venue && ` · ${e.venue}`}
+              <Link key={e.id} to={`/events/${e.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm">
+                <CoverThumb imageUrl={e.imageUrl} markdown={e.description} />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold">{e.title}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {fmtDateTime(e.startsAt)}
+                    {e.venue && ` · ${e.venue}`}
+                  </div>
                 </div>
               </Link>
             ))}

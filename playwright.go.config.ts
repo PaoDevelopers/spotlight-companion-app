@@ -13,7 +13,7 @@ process.env.E2E_DB = DB; // lets a test promote its own throwaway user to admin
 export default defineConfig({
   testDir: "./e2e",
   workers: 1,
-  use: { baseURL: "http://localhost:3100", bypassCSP: true, launchOptions: { executablePath: process.env.CHROMIUM_PATH } },
+  use: { baseURL: "http://localhost:3100", bypassCSP: true, trace: "retain-on-failure", launchOptions: { executablePath: process.env.CHROMIUM_PATH } },
   webServer: {
     command: `sh -c "rm -f ${DB} ${DB}-wal ${DB}-shm; exec ./spotlight serve"`,
     url: "http://localhost:3100/readyz",

@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -78,8 +78,13 @@ type idClaims struct {
 	Nonce             string `json:"nonce"`
 }
 
-// Identity is who Microsoft says signed in.
-type Identity struct{ Email, Name string }
+// Identity is who Microsoft says signed in. Email is the address used for the school-domain check and for a new account;
+// Others are the person's other addresses in the token (Microsoft can send a mail address and a sign-in name that differ),
+// used to recognise an account that was loaded or created under one of them.
+type Identity struct {
+	Email, Name string
+	Others      []string
+}
 
 // VerifyIDToken checks the signature (RS256 only), issuer, audience (must be OUR client id, so tokens minted
 // for other apps in the tenant are refused), expiry, and that the nonce is the one this sign-in started with.
@@ -103,21 +108,36 @@ func (a *App) VerifyIDToken(ctx context.Context, idToken, nonce string) (Identit
 	if c.Nonce == "" || !constEq(c.Nonce, nonce) {
 		return Identity{}, &OIDCError{"nonce", "nonce mismatch"}
 	}
-	email := ""
-	for _, v := range []string{c.Email, c.PreferredUsername} {
-		if strings.Count(v, "@") == 1 && !strings.ContainsAny(v, " \t") {
-			email = strings.ToLower(strings.TrimSpace(v))
+	var all []string
+	// the sign-in name comes first: IT assigns it, whereas the mail address can be a different or editable attribute
+	for _, v := range []string{c.PreferredUsername, c.Email} {
+		v = strings.ToLower(strings.TrimSpace(v))
+		if strings.Count(v, "@") == 1 && !strings.ContainsAny(v, " \t") && !slices.Contains(all, v) {
+			all = append(all, v)
+		}
+	}
+	if len(all) == 0 {
+		return Identity{}, &OIDCError{"bad_email", "no usable email claim"}
+	}
+	// the main address is the first one on a school domain (so a stray personal address in one claim cannot decide the role)
+	email := all[0]
+	for _, v := range all {
+		if a.RoleForEmail(v) != "" {
+			email = v
 			break
 		}
 	}
-	if email == "" {
-		return Identity{}, &OIDCError{"bad_email", "no usable email claim"}
+	var others []string
+	for _, v := range all {
+		if v != email {
+			others = append(others, v)
+		}
 	}
 	name := strings.TrimSpace(c.Name)
 	if name == "" {
 		name, _, _ = strings.Cut(email, "@")
 	}
-	return Identity{Email: email, Name: name}, nil
+	return Identity{Email: email, Name: name, Others: others}, nil
 }
 
 // RoleForEmail: student domain -> student, staff domain -> teacher, anything else (including look-alike domains) -> "".
@@ -135,41 +155,87 @@ func (a *App) RoleForEmail(email string) string {
 	return ""
 }
 
-// Provision creates the account on first sign-in. Existing accounts keep their role (an admin may have promoted
-// them); addresses in ADMIN_EMAILS are always admins.
+// Provision finds or creates the account of the person who signed in. If there is a record for any of their addresses
+// (for example one loaded from the school's student list) that is the account: Microsoft's name replaces the loaded name
+// and everything recorded for it (check-ins, sign-ups, results, awards, class) stays. If addresses lead to two different
+// accounts, they are merged into one. Existing accounts keep their role (an admin may have promoted them); addresses in
+// ADMIN_EMAILS are always admins.
 func (a *App) Provision(ctx context.Context, who Identity) (User, error) {
 	role := a.RoleForEmail(who.Email)
 	if role == "" {
 		return User{}, &OIDCError{"domain", who.Email}
 	}
+	addresses := append([]string{who.Email}, who.Others...)
 	isAdmin := false
 	for _, e := range a.Cfg.AdminEmails {
-		if e == who.Email {
+		if slices.Contains(addresses, e) {
 			isAdmin = true
 		}
 	}
 	var id int64
 	err := a.tx(ctx, func(t *sql.Tx) error {
-		var curRole, curName string
-		err := t.QueryRowContext(ctx, `SELECT id, role, name FROM users WHERE email = ?`, who.Email).Scan(&id, &curRole, &curName)
-		if errors.Is(err, sql.ErrNoRows) {
+		// every account any of these addresses leads to, oldest first
+		var found []int64
+		for _, e := range addresses {
+			owner, ok, err := aliasOwner(ctx, t, e)
+			if err != nil {
+				return err
+			}
+			if !ok || slices.Contains(found, owner) {
+				continue
+			}
+			if e != who.Email {
+				// A second address in the token may only lead to a STUDENT account, for a student sign-in. It must never attach
+				// someone to a teacher or admin account, whatever an address claim says.
+				var ownerRole string
+				if err := t.QueryRowContext(ctx, `SELECT role FROM users WHERE id = ?`, owner).Scan(&ownerRole); err != nil {
+					return err
+				}
+				if ownerRole != "student" || role != "student" || a.RoleForEmail(e) != "student" {
+					continue
+				}
+			}
+			found = append(found, owner)
+		}
+		slices.Sort(found)
+		if len(found) == 0 {
 			if isAdmin {
 				role = "admin"
 			}
-			return t.QueryRowContext(ctx, `INSERT INTO users (email, name, role) VALUES (?, ?, ?) RETURNING id`, who.Email, who.Name, role).Scan(&id)
+			if err := t.QueryRowContext(ctx, `INSERT INTO users (email, name, role) VALUES (?, ?, ?) RETURNING id`, who.Email, who.Name, role).Scan(&id); err != nil {
+				return err
+			}
+		} else {
+			id = found[0]
+			for _, other := range found[1:] {
+				if _, err := mergeTx(ctx, t, id, other, false); err != nil {
+					return err
+				}
+			}
 		}
-		if err != nil {
+		var curRole, curName, curEmail string
+		if err := t.QueryRowContext(ctx, `SELECT role, name, email FROM users WHERE id = ?`, id).Scan(&curRole, &curName, &curEmail); err != nil {
 			return err
 		}
-		if curName != who.Name {
+		if curName != who.Name { // the real account's name replaces the loaded record's
 			if _, err := t.ExecContext(ctx, `UPDATE users SET name = ? WHERE id = ?`, who.Name, id); err != nil {
 				return err
 			}
 		}
-		if isAdmin && curRole != "admin" {
-			_, err = t.ExecContext(ctx, `UPDATE users SET role = 'admin' WHERE id = ?`, id)
+		for _, e := range addresses { // remember the person's other addresses, so the next sign-in and a re-import find this same account
+			if e == curEmail || a.RoleForEmail(e) != curRole && !(curRole == "admin" && a.RoleForEmail(e) == "teacher") {
+				continue // only addresses of the same kind (a student's school address, a teacher's staff address)
+			}
+			// never take an address that is already someone's account
+			if _, err := t.ExecContext(ctx, `INSERT OR IGNORE INTO user_aliases (email, user_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = ?)`, e, id, e); err != nil {
+				return err
+			}
 		}
-		return err
+		if isAdmin && curRole != "admin" {
+			_, err := t.ExecContext(ctx, `UPDATE users SET role = 'admin' WHERE id = ?`, id)
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		return User{}, err

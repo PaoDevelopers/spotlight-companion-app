@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SubjectBadge } from "@/components/ui/badge";
 import { QrImage } from "@/components/QrImage";
+import { CoverThumb } from "@/components/CoverThumb";
 import { api } from "@/lib/api";
 import type { Exhibit } from "@/lib/types";
 import { useAdminExhibitions } from "./ExhibitEditor";
@@ -12,13 +13,11 @@ export type AdminExhibit = Exhibit & { tagToken: string; tagUrl: string; visits:
 
 export const useAdminExhibits = () => useQuery({ queryKey: ["admin-exhibits"], queryFn: () => api.get<AdminExhibit[]>("/api/admin/exhibits") });
 
-const Thumb = ({ url }: { url: string | null }) =>
-  url ? <img src={url} alt="" className="size-12 shrink-0 rounded object-cover" /> : <div className="size-12 shrink-0 rounded bg-muted" aria-hidden />;
 
 function ExhibitRow({ x }: { x: AdminExhibit }) {
   return (
     <Link to={`/admin/exhibits/${x.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm hover:bg-accent">
-      <Thumb url={x.imageUrl} />
+      <CoverThumb imageUrl={x.imageUrl} markdown={x.bodyMd} className="size-12" />
       <div className="min-w-0 flex-1">
         <div className="truncate">
           <SubjectBadge subject={x.subject} />

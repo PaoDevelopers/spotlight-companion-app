@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
 import { SubjectBadge } from "@/components/ui/badge";
 import { checkinState, inWords } from "@/lib/checkin";
 import { fmtDateTime } from "@/lib/format";
-import type { Event } from "@/lib/types";
+import type { Event, StudentHit } from "@/lib/types";
 import { FormError, SaveButton } from "./shared";
 
 interface ImportReport {
@@ -181,6 +181,107 @@ function TaskCard({ to, title, text, note }: { to: string; title: string; text: 
   );
 }
 
+interface MergeReport {
+  moved: Record<string, number>;
+  duplicate: Record<string, number>;
+}
+const THINGS: [string, string, string][] = [
+  ["checkins", "check-in", "check-ins"],
+  ["event_signups", "sign-up", "sign-ups"],
+  ["competition_entries", "competition entry", "competition entries"],
+  ["exhibit_visits", "exhibit visit", "exhibit visits"],
+  ["student_awards", "award", "awards"],
+];
+
+/** Choose one student from a search. Shows the address too, because duplicates often have the same name. */
+function PickStudent({ label, chosen, onChoose }: { label: string; chosen: StudentHit | null; onChoose: (s: StudentHit | null) => void }) {
+  const [text, setText] = useState("");
+  const term = text.trim();
+  const hits = useQuery({
+    queryKey: ["admin-students", term],
+    queryFn: () => api.get<StudentHit[]>(`/api/admin/students?q=${encodeURIComponent(term)}`),
+    enabled: term.length >= 2 && !chosen,
+    placeholderData: (prev) => prev,
+  });
+  return (
+    <div className="space-y-1 text-sm">
+      <span className="block font-medium">{label}</span>
+      {chosen ? (
+        <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 p-2">
+          <span>{chosen.name} <span className="text-muted-foreground">{chosen.className} · {chosen.email}</span></span>
+          <button type="button" className="underline" onClick={() => { onChoose(null); setText(""); }}>Change</button>
+        </div>
+      ) : (
+        <>
+          <Input type="search" aria-label={label} autoComplete="off" placeholder="Search by name or address…" value={text} onChange={(e) => setText(e.target.value)} />
+          {term.length >= 2 && hits.data && (
+            <ul className="divide-y rounded-md border bg-card" aria-label={`${label}: results`}>
+              {hits.data.length === 0 && <li className="p-2 text-muted-foreground">No student matches “{term}”.</li>}
+              {hits.data.map((h) => (
+                <li key={h.id} className="flex items-center justify-between gap-2 p-2">
+                  <span>{h.name} <span className="text-muted-foreground">{h.className} · {h.email}</span></span>
+                  <Button type="button" size="sm" variant="outline" onClick={() => onChoose(h)}>Choose</Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * For a student who ended up with two accounts (for example the record loaded from the school's list, and the account made
+ * when they first signed in). Everything recorded on the old record moves to the real account, and the real account's name stays.
+ */
+function MergeDuplicates() {
+  const qc = useQueryClient();
+  const [keep, setKeep] = useState<StudentHit | null>(null);
+  const [drop, setDrop] = useState<StudentHit | null>(null);
+  const [done, setDone] = useState(false);
+  const ready = keep && drop && keep.id !== drop.id;
+  const preview = useQuery({
+    queryKey: ["merge-preview", keep?.id, drop?.id],
+    queryFn: () => api.post<MergeReport>("/api/admin/users/merge", { keepId: keep!.id, dropId: drop!.id, dryRun: true }),
+    enabled: !!ready,
+    retry: false,
+    gcTime: 0,
+  });
+  const merge = useMutation({
+    mutationFn: () => api.post<MergeReport>("/api/admin/users/merge", { keepId: keep!.id, dropId: drop!.id }),
+    onSuccess: () => { setDone(true); setKeep(null); setDrop(null); qc.invalidateQueries(); },
+  });
+  const list = (r: Record<string, number>) => THINGS.filter(([k]) => r[k] > 0).map(([k, one, many]) => `${r[k]} ${r[k] === 1 ? one : many}`).join(", ");
+  return (
+    <section className="space-y-3 rounded-lg bg-card p-4 shadow-sm">
+      <b>Merge a student's two accounts</b>
+      <p className="text-sm text-muted-foreground">
+        Use this when one student appears twice: the record loaded from the school's list, and the account made when they signed in. Everything recorded on the old
+        record (check-ins, sign-ups, results, awards) moves to the real account, which keeps its name. It also stops a re-import from bringing the old record back.
+      </p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <PickStudent label="The real account (the one they sign in with)" chosen={keep} onChoose={(s) => { setKeep(s); setDone(false); merge.reset(); }} />
+        <PickStudent label="The old record to replace" chosen={drop} onChoose={(s) => { setDrop(s); setDone(false); merge.reset(); }} />
+      </div>
+      {keep && drop && keep.id === drop.id && <p role="alert" className="text-sm text-red-700">Choose two different accounts.</p>}
+      <FormError error={preview.error ?? merge.error} />
+      {ready && preview.data && (
+        <div role="status" className="space-y-2 text-sm">
+          <p>
+            <b>{drop.name}</b> ({drop.email}) will be replaced by <b>{keep.name}</b> ({keep.email}).{" "}
+            {list(preview.data.moved) ? <>Moving over: {list(preview.data.moved)}.</> : <>There is nothing recorded on the old record.</>}{" "}
+            {list(preview.data.duplicate) && <>Already on both, so not counted twice: {list(preview.data.duplicate)}.</>} The address {drop.email} will lead to {keep.name} from now on.
+            This cannot be undone.
+          </p>
+          <SaveButton pending={merge.isPending} pendingText="Merging…" onClick={() => merge.mutate()} type="button">Merge these two accounts</SaveButton>
+        </div>
+      )}
+      {done && <p role="status" className="text-sm text-emerald-700">Merged. The old record is gone and its history is on the real account.</p>}
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const { me } = useAuth();
   const q = useQuery({ queryKey: ["admin-stats"], queryFn: () => api.get<{ events: number; checkins: number; users: number; exhibits: number }>("/api/admin/stats") });
@@ -224,6 +325,7 @@ export default function Dashboard() {
       )}
       {me?.canImpersonate && <ViewAsStudent />}
       {me?.role === "admin" && <LoadStudents />}
+      {me?.role === "admin" && <MergeDuplicates />}
       {me?.role === "admin" && (
         <form
           onSubmit={(e) => {

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Prose } from "@/components/Prose";
+import { CoverThumb } from "@/components/CoverThumb";
 import { SubjectBadge } from "@/components/ui/badge";
 import { SUBJECTS } from "@/lib/subjects";
 import { cn } from "@/lib/utils";
@@ -11,13 +12,16 @@ type Listed = Exhibit & { visited: boolean };
 
 function ExhibitCard({ x }: { x: Listed }) {
   return (
-    <Link to={`/exhibits/${x.slug}`} className="block rounded-lg bg-card p-3 shadow-sm">
-      <SubjectBadge subject={x.subject} />
-      <span className="font-semibold">
-        {x.visited ? "✅ " : ""}
-        {x.title}
-      </span>
-      <div className="text-sm text-muted-foreground">{x.summary}</div>
+    <Link to={`/exhibits/${x.slug}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm">
+      <CoverThumb imageUrl={x.imageUrl} markdown={x.bodyMd} />
+      <div className="min-w-0 flex-1">
+        <SubjectBadge subject={x.subject} />
+        <span className="font-semibold">
+          {x.visited ? "✅ " : ""}
+          {x.title}
+        </span>
+        <div className="text-sm text-muted-foreground">{x.summary}</div>
+      </div>
     </Link>
   );
 }

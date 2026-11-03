@@ -1,11 +1,17 @@
 package web
 
 import (
+	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
 	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/auth"
 )
 
@@ -136,5 +142,89 @@ func TestClosedCheckinSaysWhy(t *testing.T) {
 		if got.OK || got.Reason != want || got.Event == "" || got.OpensAt == "" || strings.Contains(got.Message, "isn't open for this event") {
 			t.Errorf("%s: %+v", want, got)
 		}
+	}
+}
+
+func TestMergeEndpointIsAdminOnlyAndReportsCounts(t *testing.T) {
+	e, _, student := seeded(t)
+	e.app.DB.Write.Exec(`UPDATE users SET role = 'admin' WHERE email = 'teacher@demo.school'`)
+	admin := e.client()
+	admin.login("teacher@demo.school", "DEMOCODE")
+	plainTeacher := teacherOnly(e) // a teacher who is not an admin
+	// a second student account to fold in
+	if _, err := e.app.DB.Write.Exec(`INSERT INTO users (email, name, class_name, role) VALUES ('s90009@stu.ykpaoschool.cn', 'Loaded Record', '9Z', 'student')`); err != nil {
+		t.Fatal(err)
+	}
+	keep := decode[meView](t, student.mustStatus(200, "GET", "/api/me", nil)).ID
+	var drop int64
+	e.app.DB.Read.QueryRow(`SELECT id FROM users WHERE email = 's90009@stu.ykpaoschool.cn'`).Scan(&drop)
+	e.app.DB.Write.Exec(`INSERT INTO exhibit_visits (exhibit_id, user_id) VALUES (1, ?)`, drop)
+
+	body := map[string]any{"keepId": keep, "dropId": drop}
+	student.mustStatus(403, "POST", "/api/admin/users/merge", body)
+	plainTeacher.mustStatus(403, "POST", "/api/admin/users/merge", body)
+	admin.mustStatus(422, "POST", "/api/admin/users/merge", map[string]any{"keepId": keep, "dropId": keep})
+
+	type rep struct{ Moved, Duplicate map[string]int }
+	dry := decode[rep](t, admin.mustStatus(200, "POST", "/api/admin/users/merge", map[string]any{"keepId": keep, "dropId": drop, "dryRun": true}))
+	if dry.Moved["exhibit_visits"] != 1 {
+		t.Fatalf("dry run: %+v", dry)
+	}
+	if n := countUsers(e, drop); n != 1 {
+		t.Fatal("a dry run must not change anything")
+	}
+	admin.mustStatus(200, "POST", "/api/admin/users/merge", body)
+	if n := countUsers(e, drop); n != 0 {
+		t.Fatal("the record should be gone")
+	}
+	admin.mustStatus(404, "POST", "/api/admin/users/merge", body) // already merged
+}
+
+func countUsers(e *env, id int64) (n int) {
+	e.app.DB.Read.QueryRow(`SELECT COUNT(*) FROM users WHERE id = ?`, id).Scan(&n)
+	return
+}
+
+// A student loaded from the school's list signs in through Microsoft (the real callback), their sign-in name differing from
+// the mail address on the record: they land on the loaded account with its history, under Microsoft's name.
+func TestLoadedStudentSignsInToTheirOwnRecord(t *testing.T) {
+	e, p := entraSetup(t)
+	ctx := context.Background()
+	if _, err := e.app.ImportStudents(ctx, []app.StudentRecord{{ID: "s90001", Name: "Mei Ling Wong 黄美玲 (Amy)", Class: "11B"}}, false); err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := e.app.UserByEmail(ctx, "s90001@stu.ykpaoschool.cn")
+	ev, err := e.app.CreateEvent(ctx, app.EventInput{Title: "Talk", Subject: "cs", StartsAt: e.now.Add(-time.Hour), EndsAt: e.now.Add(time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.app.ManualCheckInID(ctx, ev.ID, rec.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	cl := e.client()
+	nonce, state := start(t, cl, "/")
+	u, _ := url.Parse(e.base)
+	cl.Jar.SetCookies(u, []*http.Cookie{{Name: "oidc_nonce", Value: nonce, Path: "/"}})
+	// the sign-in name is a different address; the address on the record arrives as the mail address
+	tok := p.token(t, nonce, "s90001@stu.ykpaoschool.cn", jwt.MapClaims{"preferred_username": "amy.wong@stu.ykpaoschool.cn", "name": "Amy Wong 黄美玲"})
+	if res, _ := cl.post("/auth", url.Values{"id_token": {tok}, "state": {state}}); res.StatusCode != 303 || strings.Contains(res.Header.Get("Location"), "error") {
+		t.Fatalf("sign-in: %d %s", res.StatusCode, res.Header.Get("Location"))
+	}
+	me := decode[struct {
+		ID                    int64
+		Name, ClassName, Role string
+	}](t, cl.mustStatus(200, "GET", "/api/me", nil))
+	if me.ID != rec.ID || me.Name != "Amy Wong 黄美玲" || me.ClassName != "11B" || me.Role != "student" {
+		t.Fatalf("should land on the loaded record with Microsoft's name: %+v (record %d)", me, rec.ID)
+	}
+	var n int
+	e.app.DB.Read.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'student'`).Scan(&n)
+	if n != 1 {
+		t.Fatalf("%d student accounts: a duplicate was made", n)
+	}
+	hist := decode[[]struct{ Event string }](t, cl.mustStatus(200, "GET", "/api/me/checkins", nil))
+	if len(hist) != 1 || hist[0].Event != "Talk" {
+		t.Fatalf("the check-in recorded on the loaded record must still be theirs: %+v", hist)
 	}
 }

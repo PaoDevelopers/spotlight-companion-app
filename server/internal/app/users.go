@@ -41,7 +41,9 @@ func (a *App) UserByID(ctx context.Context, id int64) (User, error) {
 }
 
 func (a *App) UserByEmail(ctx context.Context, email string) (User, error) {
-	u, err := scanUser(a.DB.Read.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE email = ?`, strings.ToLower(strings.TrimSpace(email))))
+	email = strings.ToLower(strings.TrimSpace(email))
+	// an address that was merged into another account (or is another address of the same person) finds that account
+	u, err := scanUser(a.DB.Read.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE email = ? OR id = (SELECT user_id FROM user_aliases WHERE email = ?) ORDER BY email = ? DESC LIMIT 1`, email, email, email))
 	if errors.Is(err, sql.ErrNoRows) {
 		return u, ErrNotFound
 	}

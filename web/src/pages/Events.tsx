@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SubjectBadge } from "@/components/ui/badge";
 import { Prose } from "@/components/Prose";
+import { CoverThumb } from "@/components/CoverThumb";
 import { api, errorMessage } from "@/lib/api";
 import { fmtDateTime, fmtLongDateTime } from "@/lib/format";
 import { SUBJECTS } from "@/lib/subjects";
@@ -30,12 +31,15 @@ export function Events() {
       </div>
       <div className="grid gap-2 md:grid-cols-2">
       {q.data?.map((e) => (
-        <Link key={e.id} to={`/events/${e.id}`} className="block rounded-lg bg-card p-3 shadow-sm">
-          <SubjectBadge subject={e.subject} />
-          <span className="font-semibold">{e.title}</span>
-          <div className="text-sm text-muted-foreground">
-            {fmtDateTime(e.startsAt)}
-            {e.venue && ` · ${e.venue}`}
+        <Link key={e.id} to={`/events/${e.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm">
+          <CoverThumb imageUrl={e.imageUrl} markdown={e.description} />
+          <div className="min-w-0 flex-1">
+            <SubjectBadge subject={e.subject} />
+            <span className="font-semibold">{e.title}</span>
+            <div className="text-sm text-muted-foreground">
+              {fmtDateTime(e.startsAt)}
+              {e.venue && ` · ${e.venue}`}
+            </div>
           </div>
         </Link>
       ))}

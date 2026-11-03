@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SubjectBadge } from "@/components/ui/badge";
 import { QrImage } from "@/components/QrImage";
+import { CoverThumb } from "@/components/CoverThumb";
 import { Scanner } from "@/components/Scanner";
 import { api } from "@/lib/api";
 import { fmtDateTime, fmtLongDateTime } from "@/lib/format";
@@ -19,7 +20,7 @@ export function AdminEvents() {
   const past = (q.data?.filter((e) => new Date(e.endsAt).getTime() < now) ?? []).reverse();
   const row = (e: Event) => (
     <Link key={e.id} to={`/admin/events/${e.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm hover:bg-accent">
-      {e.imageUrl ? <img src={e.imageUrl} alt="" className="size-12 rounded object-cover" /> : <div className="size-12 rounded bg-muted" aria-hidden />}
+      <CoverThumb imageUrl={e.imageUrl} markdown={e.description} className="size-12" />
       <div className="min-w-0 flex-1">
         <div className="truncate">
           <SubjectBadge subject={e.subject} />

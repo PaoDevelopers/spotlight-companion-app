@@ -85,7 +85,7 @@ func (a *App) ImportStudents(ctx context.Context, recs []StudentRecord, dryRun b
 			email := id + "@" + a.Cfg.StudentDomain
 			class := strings.TrimSpace(r.Class)
 			var curClass sql.NullString
-			err := t.QueryRowContext(ctx, `SELECT class_name FROM users WHERE email = ?`, email).Scan(&curClass)
+			err := t.QueryRowContext(ctx, `SELECT class_name FROM users WHERE email = ? OR id = (SELECT user_id FROM user_aliases WHERE email = ?) ORDER BY email = ? DESC LIMIT 1`, email, email, email).Scan(&curClass)
 			switch {
 			case errors.Is(err, sql.ErrNoRows):
 				if _, err := t.ExecContext(ctx, `INSERT INTO users (email, name, class_name, role) VALUES (?, ?, NULLIF(?, ''), 'student')`, email, name, class); err != nil {
@@ -97,7 +97,7 @@ func (a *App) ImportStudents(ctx context.Context, recs []StudentRecord, dryRun b
 			default:
 				rep.Existing++
 				if class != "" && strings.TrimSpace(curClass.String) == "" {
-					if _, err := t.ExecContext(ctx, `UPDATE users SET class_name = ? WHERE email = ?`, class, email); err != nil {
+					if _, err := t.ExecContext(ctx, `UPDATE users SET class_name = ? WHERE email = ? OR id = (SELECT user_id FROM user_aliases WHERE email = ?)`, class, email, email); err != nil {
 						return err
 					}
 					rep.ClassFilled++

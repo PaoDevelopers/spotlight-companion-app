@@ -108,16 +108,16 @@ func TestRoleForEmailAndProvision(t *testing.T) {
 		}
 	}
 
-	s, err := a.Provision(ctx, Identity{"kid@stu.ykpaoschool.cn", "Kid"})
+	s, err := a.Provision(ctx, Identity{Email: "kid@stu.ykpaoschool.cn", Name: "Kid"})
 	if err != nil || s.Role != "student" {
 		t.Fatalf("%+v %v", s, err)
 	}
-	tch, _ := a.Provision(ctx, Identity{"ms@ykpaoschool.cn", "Ms T"})
+	tch, _ := a.Provision(ctx, Identity{Email: "ms@ykpaoschool.cn", Name: "Ms T"})
 	if tch.Role != "teacher" {
 		t.Fatalf("%+v", tch)
 	}
 	var oe *OIDCError
-	if _, err := a.Provision(ctx, Identity{"x@gmail.com", "X"}); !errors.As(err, &oe) || oe.Code != "domain" {
+	if _, err := a.Provision(ctx, Identity{Email: "x@gmail.com", Name: "X"}); !errors.As(err, &oe) || oe.Code != "domain" {
 		t.Fatalf("outsider: %v", err)
 	}
 	if u, _ := a.UserByEmail(ctx, "x@gmail.com"); u.ID != 0 {
@@ -128,14 +128,14 @@ func TestRoleForEmailAndProvision(t *testing.T) {
 	if _, err := a.DB.Write.Exec(`UPDATE users SET role = 'teacher', class_name = '10A' WHERE email = 'kid@stu.ykpaoschool.cn'`); err != nil {
 		t.Fatal(err)
 	}
-	u, _ := a.Provision(ctx, Identity{"kid@stu.ykpaoschool.cn", "Kid New"})
+	u, _ := a.Provision(ctx, Identity{Email: "kid@stu.ykpaoschool.cn", Name: "Kid New"})
 	if u.Role != "teacher" || u.Name != "Kid New" || u.ClassName != "10A" || u.ID != s.ID {
 		t.Fatalf("%+v", u)
 	}
 
 	a.Cfg.AdminEmails = []string{"boss@ykpaoschool.cn", "ms@ykpaoschool.cn"}
-	boss, _ := a.Provision(ctx, Identity{"boss@ykpaoschool.cn", "Boss"})
-	promoted, _ := a.Provision(ctx, Identity{"ms@ykpaoschool.cn", "Ms T"})
+	boss, _ := a.Provision(ctx, Identity{Email: "boss@ykpaoschool.cn", Name: "Boss"})
+	promoted, _ := a.Provision(ctx, Identity{Email: "ms@ykpaoschool.cn", Name: "Ms T"})
 	if boss.Role != "admin" || promoted.Role != "admin" {
 		t.Fatalf("%+v %+v", boss, promoted)
 	}

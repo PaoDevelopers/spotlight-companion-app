@@ -182,6 +182,15 @@ Every change is written to the audit log. Only students can receive awards.
   a student session that lasts **one hour**. While viewing, `GET /api/me` has `"viewingAs": "<admin name>"`, admin endpoints answer 403, and a student's privacy setting
   cannot be changed (409). `POST /api/impersonate/stop` → 200 admin (back to a normal session); 409 if not viewing. Both are in the audit log. Signing out ends it.
 
+**Merging a student's two accounts** (admin only)
+- `POST /api/admin/users/merge` `{"keepId","dropId","dryRun"?}` → `{"moved":{table:n},"duplicate":{table:n}}` (counts only). Folds the account `dropId` into `keepId`: its check-ins,
+  sign-ups, competition entries, exhibit visits and awards move over (anything the staying account already has is not doubled), the staying account keeps its name,
+  and the old address becomes another address of the same student, so signing in under it, a manual check-in by email or loading the school list again all lead
+  to the one account. Both must be students (`422` otherwise; `404` if one is missing). Audit-logged. Use `dryRun` to preview.
+- Microsoft sign-in does this by itself: a record loaded from the student list (or an earlier account) is recognised through **any** address in the token
+  (`preferred_username` and `email`), becomes the signed-in account, and takes Microsoft's name; two accounts reached by one token are merged. A second address only ever
+  matches a **student** account on the student domain, never a teacher or admin account.
+
 **Roster and roles**
 - `POST /api/admin/roster` `{"csv": "name,email,class\n..."}` → `{"issued":[{name,email,className,code}]}`. The codes are shown
   once and never stored in readable form: show them immediately with a print button. Not available in `entra` mode (409).

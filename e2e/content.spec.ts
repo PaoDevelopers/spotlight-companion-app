@@ -49,14 +49,14 @@ test("teacher adds pictures to an event and an exhibit, uses chemistry, deletes 
   expect(loaded.length).toBe(3);
   expect(loaded.every((w) => w > 0)).toBe(true);
 
-  // Back goes to the page they came from; with no history it goes up a level
-  await expect(student.getByRole("button", { name: /Back/ })).toBeVisible();
-  await student.getByRole("button", { name: /Back/ }).click();
-  await expect(student).toHaveURL(/\/events\?subject=chemistry/);
-  await student.goto(`/events/${eventId}`); // fresh load: no history to return to
-  await student.getByRole("button", { name: /Back/ }).click();
+  // Back always goes UP to the parent page, however they arrived (here: from a filtered list), and says where
+  await expect(student.getByRole("button", { name: "Back to Events" })).toBeVisible();
+  await student.getByRole("button", { name: "Back to Events" }).click();
   await expect(student).toHaveURL(/\/events$/);
-  await expect(student.getByRole("button", { name: /Back/ })).toBeVisible();
+  await student.goto(`/events/${eventId}`); // opened directly, with no history at all
+  await student.getByRole("button", { name: "Back to Events" }).click();
+  await expect(student).toHaveURL(/\/events$/);
+  await expect(student.getByRole("button", { name: "Back to Home" })).toBeVisible();
 
   // an exhibit with a picture in its text, then delete it
   await page.goto("/admin/exhibits/new");

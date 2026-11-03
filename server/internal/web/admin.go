@@ -711,3 +711,22 @@ func (s *Server) adminImportStudents(w http.ResponseWriter, r *http.Request, u a
 	}
 	writeJSON(w, http.StatusOK, rep)
 }
+
+// adminMergeStudents makes two student accounts one (for duplicates that already exist). Admins only.
+// {"keepId":5,"dropId":9,"dryRun":true} reports counts without changing anything.
+func (s *Server) adminMergeStudents(w http.ResponseWriter, r *http.Request, u app.User) {
+	var in struct {
+		KeepID int64 `json:"keepId"`
+		DropID int64 `json:"dropId"`
+		DryRun bool  `json:"dryRun"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	rep, err := s.app.MergeStudents(r.Context(), u.ID, in.KeepID, in.DropID, in.DryRun)
+	if err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rep)
+}

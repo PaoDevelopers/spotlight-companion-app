@@ -77,6 +77,7 @@ export default function Help() {
       <Topic title="Common questions">
         <p><b>A student scanned and it says check-in isn't open yet.</b> That is the time window above. It also applies to the NFC tag and printed QR. To test earlier, you can edit the event's start time, or check someone in by hand.</p>
         <p><b>Can students see everything I type?</b> Only what you publish or save on an event or exhibit page. Award drafts and competition results you have not saved stay private.</p>
+        <p><b>A student appears twice in the list.</b> Usually the record loaded from the school's list and the account made when they signed in. An <b>admin</b> can merge them on the Teacher portal page (<b>Merge a student's two accounts</b>). Everything recorded moves to the real account and keeps its name. Normally this joins up by itself when the student signs in.</p>
         <p><b>Are student names public?</b> Not by default. On public lists a student shows as “Student, 10A” unless they chose to show their name on their <b>Me</b> page.</p>
         <p><b>I deleted something by mistake.</b> Deleting cannot be undone from here. Ask an admin: the server keeps a nightly backup.</p>
         <p><b>Printed QR codes stopped working.</b> Tell an admin: this happens if the site's address or its secret setting was changed after printing.</p>

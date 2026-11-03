@@ -16,22 +16,38 @@ const NAV: [string, string][] = [
   ["/me", "Me"],
 ];
 
-/**
- * Goes back to the page the person came from. If they opened this page directly (a link, an NFC tap, a reload with no
- * history), there is nothing to go back to, so it goes up one level in the site instead.
- */
+/** The page one level up: where "Back" goes, always, however the person arrived (a link, an NFC tap, a bookmark). */
+export function parentOf(pathname: string): string {
+  const p = pathname.replace(/\/+$/, "");
+  if (p.startsWith("/admin/exhibitions")) return "/admin/exhibits"; // exhibitions are managed from the Exhibits page
+  const up = p.slice(0, p.lastIndexOf("/"));
+  return up === "" ? "/" : up;
+}
+
+const PAGE_NAMES: Record<string, string> = {
+  "/": "Home",
+  "/events": "Events",
+  "/exhibits": "Exhibits",
+  "/admin": "the Teacher portal",
+  "/admin/events": "Events",
+  "/admin/exhibits": "Exhibits",
+};
+const pageName = (path: string) =>
+  PAGE_NAMES[path] ?? (/^\/(admin\/)?events\/\d+$/.test(path) ? "the event" : /^\/(admin\/)?exhibits\/[^/]+$/.test(path) ? "the exhibit" : "the previous page");
+
+/** Goes up to the parent page (for example from an event's edit page to the event, from the event to the list of events). */
 export function BackButton({ home }: { home: string }) {
   const nav = useNavigate();
   const loc = useLocation();
   if (loc.pathname === home) return null;
-  const up = loc.pathname.replace(/\/[^/]+\/?$/, "") || home;
+  const up = parentOf(loc.pathname);
   return (
     <button
       type="button"
-      onClick={() => confirmLeave() && (loc.key !== "default" ? nav(-1) : nav(up.length < home.length ? home : up, { replace: true }))}
+      onClick={() => confirmLeave() && nav(up)}
       className="no-print mb-3 inline-flex items-center gap-1 rounded-md py-1 pr-2 text-sm text-muted-foreground hover:text-foreground"
     >
-      <span aria-hidden>←</span> Back
+      <span aria-hidden>←</span> Back to {pageName(up)}
     </button>
   );
 }

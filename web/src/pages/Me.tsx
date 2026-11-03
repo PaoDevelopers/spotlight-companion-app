@@ -50,9 +50,13 @@ export default function Me() {
         <label htmlFor="show" className="flex-1">
           Show my name on public leaderboards
         </label>
-        <Button variant="outline" size="sm">
-          {save.isSuccess ? "Saved" : "Save"}
-        </Button>
+        {save.isPending ? (
+          <Button variant="outline" size="sm" disabled>Saving…</Button>
+        ) : checked === me.showOnLeaderboard ? (
+          <Button type="submit" variant={save.isSuccess ? "success" : "outline"} size="sm" disabled aria-live="polite">{save.isSuccess ? "✓ Saved" : "Saved"}</Button>
+        ) : (
+          <Button variant="outline" size="sm">Save</Button>
+        )}
       </form>
       <section>
         <h2 className="mb-2 font-semibold">My check-ins</h2>

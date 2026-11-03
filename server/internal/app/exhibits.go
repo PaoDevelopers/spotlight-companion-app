@@ -17,10 +17,13 @@ type Exhibit struct {
 	Summary  string  `json:"summary"`
 	BodyMD   string  `json:"bodyMd"`
 	ImageURL *string `json:"imageUrl"`
+	// ExhibitionID is the exhibition this installation belongs to, or null when it stands alone.
+	ExhibitionID *int64 `json:"exhibitionId"`
 }
 
 type ExhibitInput struct {
 	Slug, Title, Subject, Summary, BodyMD, ImageURL string
+	ExhibitionID                                    *int64
 }
 
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
@@ -30,11 +33,11 @@ func Slugify(s string) string {
 	return strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(s), "-"), "-")
 }
 
-const exhibitCols = `id, slug, title, subject, summary, body_md, image_url`
+const exhibitCols = `id, slug, title, subject, summary, body_md, image_url, exhibition_id`
 
 func scanExhibit(r interface{ Scan(...any) error }) (Exhibit, error) {
 	var x Exhibit
-	err := r.Scan(&x.ID, &x.Slug, &x.Title, &x.Subject, &x.Summary, &x.BodyMD, &x.ImageURL)
+	err := r.Scan(&x.ID, &x.Slug, &x.Title, &x.Subject, &x.Summary, &x.BodyMD, &x.ImageURL, &x.ExhibitionID)
 	return x, err
 }
 
@@ -109,6 +112,23 @@ func (in ExhibitInput) clean() (title string, err error) {
 	return title, nil
 }
 
+// checkExhibition makes sure the chosen exhibition exists (a missing id is a mistake, not a standalone exhibit).
+func checkExhibition(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, id *int64) error {
+	if id == nil {
+		return nil
+	}
+	var n int
+	if err := q.QueryRowContext(ctx, `SELECT COUNT(*) FROM exhibitions WHERE id = ?`, *id).Scan(&n); err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrInvalid
+	}
+	return nil
+}
+
 // CreateExhibit adds a new exhibit. Its web address comes from the title (a title with no Latin letters, such as a
 // Chinese one, becomes "exhibit"), made unique with -2, -3... if taken. A web address the teacher asked for that is
 // already used is refused (ErrExists) rather than overwriting that exhibit.
@@ -138,8 +158,11 @@ func (a *App) CreateExhibit(ctx context.Context, in ExhibitInput) (Exhibit, erro
 				return err
 			}
 		}
-		return t.QueryRowContext(ctx, `INSERT INTO exhibits (slug, title, subject, summary, body_md, image_url) VALUES (?, ?, ?, ?, ?, NULLIF(?, '')) RETURNING id`,
-			slug, title, in.Subject, in.Summary, in.BodyMD, strings.TrimSpace(in.ImageURL)).Scan(&id)
+		if err := checkExhibition(ctx, t, in.ExhibitionID); err != nil {
+			return err
+		}
+		return t.QueryRowContext(ctx, `INSERT INTO exhibits (slug, title, subject, summary, body_md, image_url, exhibition_id) VALUES (?, ?, ?, ?, ?, NULLIF(?, ''), ?) RETURNING id`,
+			slug, title, in.Subject, in.Summary, in.BodyMD, strings.TrimSpace(in.ImageURL), in.ExhibitionID).Scan(&id)
 	})
 	if err != nil {
 		return Exhibit{}, err
@@ -153,13 +176,22 @@ func (a *App) UpdateExhibit(ctx context.Context, id int64, in ExhibitInput) (Exh
 	if err != nil {
 		return Exhibit{}, err
 	}
-	res, err := a.DB.Write.ExecContext(ctx, `UPDATE exhibits SET title = ?, subject = ?, summary = ?, body_md = ?, image_url = NULLIF(?, '') WHERE id = ?`,
-		title, in.Subject, in.Summary, in.BodyMD, strings.TrimSpace(in.ImageURL), id)
+	err = a.tx(ctx, func(t *sql.Tx) error {
+		if err := checkExhibition(ctx, t, in.ExhibitionID); err != nil {
+			return err
+		}
+		res, err := t.ExecContext(ctx, `UPDATE exhibits SET title = ?, subject = ?, summary = ?, body_md = ?, image_url = NULLIF(?, ''), exhibition_id = ? WHERE id = ?`,
+			title, in.Subject, in.Summary, in.BodyMD, strings.TrimSpace(in.ImageURL), in.ExhibitionID, id)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
 	if err != nil {
 		return Exhibit{}, err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return Exhibit{}, ErrNotFound
 	}
 	return scanExhibit(a.DB.Read.QueryRowContext(ctx, `SELECT `+exhibitCols+` FROM exhibits WHERE id = ?`, id))
 }

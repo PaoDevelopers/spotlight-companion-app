@@ -75,7 +75,8 @@ test("team and house competitions: entry rules, results, and a readable leaderbo
   await page.goto(`/admin/events/${teamId}/edit`);
   await page.getByLabel("This event is a competition").uncheck();
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/events/${teamId}$`));
+  await expect(page.getByRole("button", { name: "✓ Saved" })).toBeVisible();
+  await page.goto(`/admin/events/${teamId}`);
   await student.goto("/leaderboard");
   await expect(student.getByText("Robot Relay")).toHaveCount(0);
   expect(errors).toEqual([]);

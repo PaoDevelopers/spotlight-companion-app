@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { prefetchAdmin } from "@/lib/prefetch";
 import { api } from "@/lib/api";
+import { confirmLeave } from "@/lib/unsaved";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -27,7 +28,7 @@ export function BackButton({ home }: { home: string }) {
   return (
     <button
       type="button"
-      onClick={() => (loc.key !== "default" ? nav(-1) : nav(up.length < home.length ? home : up, { replace: true }))}
+      onClick={() => confirmLeave() && (loc.key !== "default" ? nav(-1) : nav(up.length < home.length ? home : up, { replace: true }))}
       className="no-print mb-3 inline-flex items-center gap-1 rounded-md py-1 pr-2 text-sm text-muted-foreground hover:text-foreground"
     >
       <span aria-hidden>←</span> Back
@@ -95,29 +96,40 @@ export function StudentLayout() {
   );
 }
 
+// Plain words for the menu: what a teacher wants to do, not what the system calls it.
 const ADMIN_NAV: [string, string][] = [
   ["/admin/events", "Events"],
   ["/admin/exhibits", "Exhibits"],
-  ["/admin/competitions", "Competitions"],
+  ["/admin/competitions", "Results"],
   ["/admin/awards", "Awards"],
-  ["/admin/roster", "Roster"],
+  ["/admin/roster", "Login codes"],
+  ["/admin/help", "Help"],
 ];
+
+/** A link that asks first if the page being left has unsaved changes. */
+function GuardedNavLink({ to, children, className }: { to: string; children: React.ReactNode; className?: string | ((p: { isActive: boolean }) => string) }) {
+  return (
+    <NavLink to={to} end={to === "/admin"} className={className} onClick={(e) => { if (!confirmLeave()) e.preventDefault(); }}>
+      {children}
+    </NavLink>
+  );
+}
 
 export function AdminLayout({ showRoster }: { showRoster: boolean }) {
   return (
     <div className="mx-auto max-w-4xl p-4 md:px-6 lg:max-w-6xl">
-      <nav className="no-print mb-6 flex flex-wrap gap-4 border-b pb-3">
-        <Link to="/admin" className="font-bold">
+      <nav aria-label="Teacher portal" className="no-print mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-3">
+        <GuardedNavLink to="/admin" className="font-bold">
           Teacher portal
-        </Link>
+        </GuardedNavLink>
         {ADMIN_NAV.filter(([to]) => showRoster || to !== "/admin/roster").map(([to, label]) => (
-          <Link key={to} to={to} className="underline">
+          <GuardedNavLink key={to} to={to} className={({ isActive }) => cn("rounded px-1 underline-offset-4 hover:underline", isActive && "bg-muted font-semibold underline")}>
             {label}
-          </Link>
+          </GuardedNavLink>
         ))}
-        <Link to="/" className="ml-auto text-sm">
-          Student view
-        </Link>
+        <GuardedNavLink to="/" className="ml-auto text-sm">
+          See the student view
+        </GuardedNavLink>
       </nav>
       <BackButton home="/admin" />
       <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>

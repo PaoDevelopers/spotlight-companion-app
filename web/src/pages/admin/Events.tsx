@@ -8,6 +8,7 @@ import { QrImage } from "@/components/QrImage";
 import { Scanner } from "@/components/Scanner";
 import { api } from "@/lib/api";
 import { fmtDateTime, fmtLongDateTime } from "@/lib/format";
+import { checkinState, inWords } from "@/lib/checkin";
 import type { Attendee, Event, ScanResult, Signup, StudentHit } from "@/lib/types";
 import { FormError, panel } from "./shared";
 
@@ -109,6 +110,22 @@ function StudentDesk({ eventId, signedUp, arrived, onChange }: { eventId: string
   );
 }
 
+/** Says in words whether students can check in right now, so a refused scan is never a surprise. */
+function CheckinStatus({ startsAt, endsAt }: { startsAt: string; endsAt: string }) {
+  const c = checkinState(startsAt, endsAt);
+  const text =
+    c.state === "open"
+      ? <>✅ <b>Check-in is open</b> until {fmtDateTime(endsAt)}. Students can scan the QR code or tap the NFC tag.</>
+      : c.state === "early"
+        ? <>⏳ <b>Check-in is not open yet.</b> It opens {inWords(c.opensAt)}, at {fmtDateTime(c.opensAt.toISOString())} (one hour before the start). A student who scans earlier is told when it opens. You can still check anyone in by hand below.</>
+        : <>🏁 <b>This event has ended, so check-in is closed.</b> You can still add or undo someone by hand below.</>;
+  return (
+    <p role="status" className={`rounded-lg p-3 text-sm ${c.state === "open" ? "bg-emerald-100" : "bg-muted"}`}>
+      {text}
+    </p>
+  );
+}
+
 export function AdminEventDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -154,6 +171,8 @@ export function AdminEventDetail() {
           <Button asChild variant="outline"><Link to={`/admin/events/new?from=${id}`}>Duplicate</Link></Button>
         </div>
       </header>
+
+      <CheckinStatus startsAt={e.startsAt} endsAt={e.endsAt} />
 
       <div className="grid grid-cols-3 gap-3">
         {stat("Signed up", e.capacity ? `${signups.length} / ${e.capacity}` : String(signups.length))}

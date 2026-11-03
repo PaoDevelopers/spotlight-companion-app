@@ -48,7 +48,19 @@ export interface StudentHit {
   email: string;
   className: string;
 }
+/** A named group of installations, such as "Physics Exhibition". */
+export interface Exhibition {
+  id: number;
+  title: string;
+  subject: Subject;
+  summary: string;
+  bodyMd: string;
+  imageUrl: string | null;
+  total: number;
+  visited: number;
+}
 export interface Exhibit {
+  exhibitionId: number | null;
   id: number;
   slug: string;
   title: string;

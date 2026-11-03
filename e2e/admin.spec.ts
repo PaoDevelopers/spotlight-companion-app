@@ -84,7 +84,13 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
     await page.locator('details input[name="title"]').fill("Lab Open Night (updated)");
   }
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/events/${eventId}$`));
+  if (GO) {
+    // an edit stays on the page and says so; the button is inactive until something changes again
+    await expect(page.getByRole("button", { name: "✓ Saved" })).toBeDisabled();
+    await page.goto(`/admin/events/${eventId}`);
+  } else {
+    await expect(page).toHaveURL(new RegExp(`/admin/events/${eventId}$`));
+  }
   await expect(page.getByRole("heading", { name: "Lab Open Night (updated)" })).toBeVisible();
 
   // Exhibit, printable QR

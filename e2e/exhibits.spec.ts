@@ -17,10 +17,10 @@ test("teacher manages exhibits: list, editor with live preview, duplicate titles
   // the list has the demo exhibits and a New exhibit button, like the event list
   await page.goto("/admin/exhibits");
   await expect(page.getByRole("link", { name: /Double Pendulum/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: "New exhibit" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "New exhibit", exact: true })).toBeVisible();
 
   // new exhibit: the preview card follows what is typed; a cover picture and chemistry
-  await page.getByRole("link", { name: "New exhibit" }).click();
+  await page.getByRole("link", { name: "New exhibit", exact: true }).click();
   await expect(page.getByRole("article", { name: "Preview" }).getByText("Untitled exhibit")).toBeVisible();
   await page.fill('input[name="title"]', "Colour Wheel");
   await page.getByRole("button", { name: "Chemistry" }).click();
@@ -65,6 +65,8 @@ test("teacher manages exhibits: list, editor with live preview, duplicate titles
   await expect(page.locator('input[name="title"]')).toHaveValue("Colour Wheel");
   await page.fill('input[name="title"]', "Colour Wheel (updated)");
   await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("button", { name: "✓ Saved" })).toBeVisible();
+  await page.getByRole("link", { name: "Back to the exhibit" }).click();
   await expect(page).toHaveURL(firstUrl);
   await expect(page.getByRole("heading", { name: "Colour Wheel (updated)" })).toBeVisible();
   expect(await page.locator("code", { hasText: "/c/exhibit." }).innerText()).toBe(tag);

@@ -317,3 +317,13 @@ func (s *Server) closedResponse(ctx context.Context, eventID int64) scanResponse
 	}
 	return out
 }
+
+// exhibitions lists the exhibitions with how many installations each has and how many the student has visited.
+func (s *Server) exhibitions(w http.ResponseWriter, r *http.Request, u app.User) {
+	list, err := s.app.Exhibitions(r.Context(), u.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, list)
+}

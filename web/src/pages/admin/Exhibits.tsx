@@ -5,6 +5,7 @@ import { SubjectBadge } from "@/components/ui/badge";
 import { QrImage } from "@/components/QrImage";
 import { api } from "@/lib/api";
 import type { Exhibit } from "@/lib/types";
+import { useAdminExhibitions } from "./ExhibitEditor";
 import { FormError, panel } from "./shared";
 
 export type AdminExhibit = Exhibit & { tagToken: string; tagUrl: string; visits: number };
@@ -14,32 +15,68 @@ export const useAdminExhibits = () => useQuery({ queryKey: ["admin-exhibits"], q
 const Thumb = ({ url }: { url: string | null }) =>
   url ? <img src={url} alt="" className="size-12 shrink-0 rounded object-cover" /> : <div className="size-12 shrink-0 rounded bg-muted" aria-hidden />;
 
+function ExhibitRow({ x }: { x: AdminExhibit }) {
+  return (
+    <Link to={`/admin/exhibits/${x.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm hover:bg-accent">
+      <Thumb url={x.imageUrl} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate">
+          <SubjectBadge subject={x.subject} />
+          <b>{x.title}</b>
+        </div>
+        <div className="truncate text-sm text-muted-foreground">{x.summary || "No summary yet"}</div>
+      </div>
+      <div className="text-right text-sm text-muted-foreground">
+        {x.visits} {x.visits === 1 ? "visit" : "visits"}
+      </div>
+    </Link>
+  );
+}
+
 export default function AdminExhibits() {
   const q = useAdminExhibits();
+  const groups = useAdminExhibitions();
+  const exhibits = q.data ?? [];
+  const inGroup = (id: number) => exhibits.filter((x) => x.exhibitionId === id);
+  const loose = exhibits.filter((x) => x.exhibitionId === null || !groups.data?.some((g) => g.id === x.exhibitionId));
+  const hasGroups = (groups.data?.length ?? 0) > 0;
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Exhibits</h1>
-        <Button asChild><Link to="/admin/exhibits/new">New exhibit</Link></Button>
+        <span className="flex gap-2">
+          <Button asChild variant="outline"><Link to="/admin/exhibitions/new">New exhibition</Link></Button>
+          <Button asChild><Link to="/admin/exhibits/new">New exhibit</Link></Button>
+        </span>
       </div>
-      {q.data && q.data.length === 0 && <p className="text-muted-foreground">No exhibits yet. Add the first installation.</p>}
-      <div className="grid gap-2 lg:grid-cols-2">
-        {q.data?.map((x) => (
-          <Link key={x.id} to={`/admin/exhibits/${x.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm hover:bg-accent">
-            <Thumb url={x.imageUrl} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate">
-                <SubjectBadge subject={x.subject} />
-                <b>{x.title}</b>
-              </div>
-              <div className="truncate text-sm text-muted-foreground">{x.summary || "No summary yet"}</div>
-            </div>
-            <div className="text-right text-sm text-muted-foreground">
-              {x.visits} {x.visits === 1 ? "visit" : "visits"}
-            </div>
-          </Link>
-        ))}
-      </div>
+      <p className="text-sm text-muted-foreground">
+        An <b>exhibit</b> is one installation with its own QR code. An <b>exhibition</b> groups exhibits that belong together, such as a Physics Exhibition and a Chemistry Exhibition.
+        {!hasGroups && " You don't need an exhibition: you can also add exhibits on their own."}
+      </p>
+      {q.data && exhibits.length === 0 && !hasGroups && <p className="text-muted-foreground">Nothing here yet. Add the first exhibit, or create an exhibition to group several.</p>}
+      {groups.data?.map((g) => (
+        <section key={g.id} className="space-y-2" aria-label={g.title}>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-1">
+            <h2 className="text-lg font-semibold">
+              <SubjectBadge subject={g.subject} />
+              {g.title} <span className="text-sm font-normal text-muted-foreground">({g.total})</span>
+            </h2>
+            <span className="flex gap-3 text-sm">
+              <Link to={`/admin/exhibits/new?exhibition=${g.id}`} className="underline">Add an exhibit here</Link>
+              <Link to={`/admin/exhibitions/${g.id}/edit`} className="underline">Edit exhibition</Link>
+            </span>
+          </div>
+          {g.summary && <p className="text-sm text-muted-foreground">{g.summary}</p>}
+          <div className="grid gap-2 lg:grid-cols-2">{inGroup(g.id).map((x) => <ExhibitRow key={x.id} x={x} />)}</div>
+          {inGroup(g.id).length === 0 && <p className="text-sm text-muted-foreground">No exhibits in it yet.</p>}
+        </section>
+      ))}
+      {loose.length > 0 && (
+        <section className="space-y-2" aria-label="Not in an exhibition">
+          {hasGroups && <h2 className="border-b pb-1 text-lg font-semibold">Not in an exhibition <span className="text-sm font-normal text-muted-foreground">({loose.length})</span></h2>}
+          <div className="grid gap-2 lg:grid-cols-2">{loose.map((x) => <ExhibitRow key={x.id} x={x} />)}</div>
+        </section>
+      )}
     </div>
   );
 }
@@ -50,6 +87,7 @@ export function AdminExhibitDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const q = useAdminExhibits();
+  const groups = useAdminExhibitions();
   const del = useMutation({
     mutationFn: () => api.del(`/api/admin/exhibits/${id}`),
     onSuccess: () => {
@@ -61,6 +99,7 @@ export function AdminExhibitDetail() {
   if (!q.data) return null;
   const x = q.data.find((e) => String(e.id) === id);
   if (!x) return <p>Exhibit not found.</p>;
+  const group = groups.data?.find((g) => g.id === x.exhibitionId);
   return (
     <div className="space-y-6">
       <header className="space-y-2">
@@ -69,6 +108,7 @@ export function AdminExhibitDetail() {
           <SubjectBadge subject={x.subject} />
           <h1 className="inline text-2xl font-bold">{x.title}</h1>
         </div>
+        {group && <p className="text-sm">Part of <Link to={`/admin/exhibitions/${group.id}/edit`} className="underline">{group.title}</Link></p>}
         {x.summary && <p className="text-muted-foreground">{x.summary}</p>}
         <div className="flex flex-wrap gap-2">
           <Button asChild><Link to={`/admin/exhibits/${x.id}/edit`}>Edit exhibit</Link></Button>

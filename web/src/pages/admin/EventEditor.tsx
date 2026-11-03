@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { api } from "@/lib/api";
 import { fmtLongDateTime, fromLocalInput, toLocalInput } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CompetitionKind, Event, Subject } from "@/lib/types";
-import { FormError, SaveButton, panel } from "./shared";
+import { FormError, SaveButton, panel, useDraftStatus } from "./shared";
 
 interface Draft {
   title: string;
@@ -92,6 +92,8 @@ export function AdminEventEdit() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-events"] }); qc.invalidateQueries({ queryKey: ["events"] }); navigate("/admin/events", { replace: true }); },
   });
   const bad = d.startsAt && d.endsAt && minutesBetween(d.startsAt, d.endsAt) <= 0 ? "The event must end after it starts." : "";
+  const status = useDraftStatus(d, !sourceId || loaded);
+  const sent = useRef(d); // what was sent, so edits typed while it saves are not wrongly shown as saved
   const save = useMutation({
     mutationFn: (body: object) => (id ? api.put<Event>(`/api/admin/events/${id}`, body) : api.post<Event>("/api/admin/events", body)),
     onSuccess: (e) => {
@@ -99,12 +101,14 @@ export function AdminEventEdit() {
       qc.invalidateQueries({ queryKey: ["admin-event"] });
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["event"] });
-      navigate(`/admin/events/${e.id}`);
+      status.markSaved(sent.current);
+      if (!id) navigate(`/admin/events/${e.id}`); // a new event: go and see it. An edit stays here and says "Saved".
     },
   });
   function submit(ev: FormEvent) {
     ev.preventDefault();
     if (bad) return;
+    sent.current = d;
     const entries = id ? source.data?.competitionEntries ?? 0 : 0;
     if (d.competition === "" && source.data?.event.competition && entries > 0 && !window.confirm(`Turning the competition off deletes its ${entries} ${entries === 1 ? "entry" : "entries"} and results. Continue?`)) return;
     save.mutate({
@@ -243,6 +247,11 @@ export function AdminEventEdit() {
         </aside>
       </div>
       <FormError error={save.error ?? del.error} />
+      {id && status.saved && (
+        <p role="status" className="text-sm text-emerald-700">
+          Saved. Students already see the new version. <Link to={`/admin/events/${id}`} className="underline">Back to the event</Link>
+        </p>
+      )}
       <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-2 border-t bg-background/95 p-3 backdrop-blur">
         {id && (
           <button
@@ -255,7 +264,7 @@ export function AdminEventEdit() {
           </button>
         )}
         <Button asChild variant="outline"><Link to={id ? `/admin/events/${id}` : "/admin/events"}>Cancel</Link></Button>
-        <SaveButton pending={save.isPending} disabled={!!bad}>{id ? "Save changes" : "Create event"}</SaveButton>
+        <SaveButton pending={save.isPending} disabled={!!bad} dirty={id ? status.dirty : undefined} saved={status.saved}>{id ? "Save changes" : "Create event"}</SaveButton>
       </div>
     </form>
   );

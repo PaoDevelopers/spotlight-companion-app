@@ -274,10 +274,75 @@ type exhibitBody struct {
 	Summary  string `json:"summary"`
 	BodyMD   string `json:"bodyMd"`
 	ImageURL string `json:"imageUrl"`
+	// ExhibitionID puts the installation in an exhibition; null or absent leaves it standalone.
+	ExhibitionID *int64 `json:"exhibitionId"`
 }
 
 func (b exhibitBody) input() app.ExhibitInput {
-	return app.ExhibitInput{Slug: b.Slug, Title: b.Title, Subject: b.Subject, Summary: b.Summary, BodyMD: b.BodyMD, ImageURL: b.ImageURL}
+	return app.ExhibitInput{Slug: b.Slug, Title: b.Title, Subject: b.Subject, Summary: b.Summary, BodyMD: b.BodyMD, ImageURL: b.ImageURL, ExhibitionID: b.ExhibitionID}
+}
+
+type exhibitionBody struct {
+	Title    string `json:"title"`
+	Subject  string `json:"subject"`
+	Summary  string `json:"summary"`
+	BodyMD   string `json:"bodyMd"`
+	ImageURL string `json:"imageUrl"`
+}
+
+func (b exhibitionBody) input() app.ExhibitionInput {
+	return app.ExhibitionInput{Title: b.Title, Subject: b.Subject, Summary: b.Summary, BodyMD: b.BodyMD, ImageURL: b.ImageURL}
+}
+
+func (s *Server) adminExhibitions(w http.ResponseWriter, r *http.Request, u app.User) {
+	list, err := s.app.Exhibitions(r.Context(), 0)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+func (s *Server) adminCreateExhibition(w http.ResponseWriter, r *http.Request, u app.User) {
+	var in exhibitionBody
+	if !readJSON(w, r, &in) {
+		return
+	}
+	x, err := s.app.CreateExhibition(r.Context(), in.input())
+	if err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, x)
+}
+
+func (s *Server) adminUpdateExhibition(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	var in exhibitionBody
+	if !readJSON(w, r, &in) {
+		return
+	}
+	x, err := s.app.UpdateExhibition(r.Context(), id, in.input())
+	if err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, x)
+}
+
+func (s *Server) adminDeleteExhibition(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := s.app.DeleteExhibition(r.Context(), id); err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // adminCreateExhibit adds a new exhibit. It never overwrites an existing one.

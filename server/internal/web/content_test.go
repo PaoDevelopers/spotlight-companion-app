@@ -355,3 +355,63 @@ func TestExhibitCreateUpdateOverHTTP(t *testing.T) {
 		}
 	}
 }
+
+func TestExhibitionsOverHTTP(t *testing.T) {
+	_, teacher, student := seeded(t)
+	type exh struct {
+		ID             int64
+		Title          string
+		Total, Visited int64
+	}
+	student.mustStatus(403, "POST", "/api/admin/exhibitions", map[string]any{"title": "x", "subject": "cs"})
+	created := decode[exh](t, teacher.mustStatus(201, "POST", "/api/admin/exhibitions", map[string]any{"title": "Chemistry Exhibition", "subject": "chemistry", "summary": "Reactions", "bodyMd": "## Welcome"}))
+	teacher.mustStatus(422, "POST", "/api/admin/exhibitions", map[string]any{"title": "", "subject": "chemistry"})
+
+	// an installation goes into it; students see the grouping and their own progress
+	x := decode[struct {
+		ID           int64
+		ExhibitionID *int64
+		TagURL       string
+	}](t, teacher.mustStatus(201, "POST", "/api/admin/exhibits", map[string]any{"title": "Indicators", "subject": "chemistry", "exhibitionId": created.ID}))
+	if x.ExhibitionID == nil || *x.ExhibitionID != created.ID {
+		t.Fatalf("%+v", x)
+	}
+	teacher.mustStatus(422, "POST", "/api/admin/exhibits", map[string]any{"title": "Orphan", "subject": "cs", "exhibitionId": 99999})
+	student.mustStatus(200, "POST", "/api/scan", map[string]string{"code": x.TagURL})
+	list := decode[[]exh](t, student.mustStatus(200, "GET", "/api/exhibitions", nil))
+	var found bool
+	for _, e := range list {
+		if e.ID == created.ID {
+			found = true
+			if e.Total != 1 || e.Visited != 1 {
+				t.Fatalf("progress: %+v", e)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("exhibition missing from the student list: %+v", list)
+	}
+	flat := decode[[]struct {
+		ID           int64
+		ExhibitionID *int64
+	}](t, student.mustStatus(200, "GET", "/api/exhibits", nil))
+	for _, e := range flat {
+		if e.ID == x.ID && (e.ExhibitionID == nil || *e.ExhibitionID != created.ID) {
+			t.Fatalf("the exhibit list must say which exhibition each belongs to: %+v", e)
+		}
+	}
+	teacher.mustStatus(200, "PUT", "/api/admin/exhibitions/"+itoa(created.ID), map[string]any{"title": "Chem Hall", "subject": "chemistry"})
+	teacher.mustStatus(404, "PUT", "/api/admin/exhibitions/99999", map[string]any{"title": "x", "subject": "cs"})
+	student.mustStatus(403, "DELETE", "/api/admin/exhibitions/"+itoa(created.ID), nil)
+	teacher.mustStatus(204, "DELETE", "/api/admin/exhibitions/"+itoa(created.ID), nil)
+	teacher.mustStatus(404, "DELETE", "/api/admin/exhibitions/"+itoa(created.ID), nil)
+	still := decode[[]struct {
+		ID           int64
+		ExhibitionID *int64
+	}](t, student.mustStatus(200, "GET", "/api/exhibits", nil))
+	for _, e := range still {
+		if e.ID == x.ID && e.ExhibitionID != nil {
+			t.Fatalf("after deleting the exhibition its installation must be standalone: %+v", e)
+		}
+	}
+}

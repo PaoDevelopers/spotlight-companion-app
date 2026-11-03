@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Input, Select } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { kindLabel } from "@/lib/competition";
 import type { CompetitionKind, Entry, StudentHit } from "@/lib/types";
-import { FormError, SaveButton, panel } from "./shared";
+import { FormError, SaveButton, panel, useDraftStatus } from "./shared";
 
 const STATUSES = ["registered", "competing", "advanced", "eliminated", "finished"];
 
@@ -24,31 +24,40 @@ interface Data {
 
 function EntryRow({ e }: { e: Entry }) {
   const qc = useQueryClient();
+  const [f, setF] = useState({ status: e.status, score: e.score === null ? "" : String(e.score), rank: e.rank === null ? "" : String(e.rank), notes: e.notes ?? "" });
+  const status = useDraftStatus(f, true);
+  const sent = useRef(f);
   const refresh = () => qc.invalidateQueries({ queryKey: ["admin-competitions"] });
-  const save = useMutation({ mutationFn: (body: object) => api.put(`/api/admin/entries/${e.id}`, body), onSuccess: refresh });
+  const save = useMutation({
+    mutationFn: () => {
+      const num = (v: string) => (v.trim() === "" ? null : Number(v));
+      return api.put(`/api/admin/entries/${e.id}`, { status: f.status, score: num(f.score), rank: num(f.rank), notes: f.notes.trim() || null });
+    },
+    onSuccess: () => { status.markSaved(sent.current); refresh(); qc.invalidateQueries({ queryKey: ["leaderboard"] }); },
+  });
   const remove = useMutation({ mutationFn: () => api.del(`/api/admin/entries/${e.id}`), onSuccess: () => { refresh(); qc.invalidateQueries({ queryKey: ["leaderboard"] }); } });
   const input = "w-auto p-1";
+  const set = (k: keyof typeof f) => (ev: { target: { value: string } }) => setF((x) => ({ ...x, [k]: ev.target.value }));
   return (
     <form
       className="flex flex-wrap items-center gap-2 border-t py-2 text-sm"
       onSubmit={(ev) => {
         ev.preventDefault();
-        const f = new FormData(ev.currentTarget);
-        const num = (k: string) => (String(f.get(k) ?? "") === "" ? null : Number(f.get(k)));
-        save.mutate({ status: String(f.get("status")), score: num("score"), rank: num("rank"), notes: String(f.get("notes") ?? "") || null });
+        sent.current = f;
+        save.mutate();
       }}
     >
       <span className="min-w-40 flex-1 basis-40">
         <b>{e.name}</b> <i className="text-muted-foreground">{e.className}</i>
         {(e.teamName || e.house) && <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs">{e.teamName ?? `${e.house} house`}</span>}
       </span>
-      <Select name="status" defaultValue={e.status} className={input} aria-label="Status">
+      <Select name="status" value={f.status} onChange={set("status")} className={input} aria-label="Status">
         {STATUSES.map((s) => <option key={s}>{s}</option>)}
       </Select>
-      <Input name="score" type="number" defaultValue={e.score ?? ""} placeholder="score" className={`${input} w-20`} aria-label="Score" />
-      <Input name="rank" type="number" min="1" defaultValue={e.rank ?? ""} placeholder="rank" className={`${input} w-16`} aria-label="Rank" />
-      <Input name="notes" defaultValue={e.notes ?? ""} placeholder="notes" className={`${input} min-w-24 flex-1`} aria-label="Notes" />
-      <SaveButton pending={save.isPending} variant="outline" size="sm">Save</SaveButton>
+      <Input name="score" type="number" value={f.score} onChange={set("score")} placeholder="score" className={`${input} w-20`} aria-label="Score" />
+      <Input name="rank" type="number" min="1" value={f.rank} onChange={set("rank")} placeholder="rank" className={`${input} w-16`} aria-label="Rank" />
+      <Input name="notes" value={f.notes} onChange={set("notes")} placeholder="notes" className={`${input} min-w-24 flex-1`} aria-label="Notes" />
+      <SaveButton pending={save.isPending} dirty={status.dirty} saved={status.saved} variant="outline" size="sm">Save</SaveButton>
       <button type="button" className="text-red-700 underline" disabled={remove.isPending} onClick={() => { if (window.confirm(`Remove ${e.name} from this competition?`)) remove.mutate(); }}>
         Remove
       </button>
@@ -125,7 +134,7 @@ export default function AdminCompetitions() {
                 <Link to={`/admin/events/${c.eventId}/edit`} className="underline">change type</Link>
               </span>
             </div>
-            {c.entries.map((e) => <EntryRow key={`${e.id}-${e.status}-${e.score}-${e.rank}`} e={e} />)}
+            {c.entries.map((e) => <EntryRow key={e.id} e={e} />)}
             {c.entries.length === 0 && <p className="border-t py-2 text-sm text-muted-foreground">Nobody has entered yet.</p>}
             <AddEntry c={c} />
           </section>

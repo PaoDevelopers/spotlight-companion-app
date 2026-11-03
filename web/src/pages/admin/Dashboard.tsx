@@ -5,6 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
 import { ApiError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { Link } from "react-router-dom";
+import { SubjectBadge } from "@/components/ui/badge";
+import { checkinState, inWords } from "@/lib/checkin";
+import { fmtDateTime } from "@/lib/format";
+import type { Event } from "@/lib/types";
 import { FormError, SaveButton } from "./shared";
 
 interface ImportReport {
@@ -124,6 +129,58 @@ function ViewAsStudent() {
   );
 }
 
+/** The next events, with the two things a teacher needs on the day one tap away. */
+function Today() {
+  const q = useQuery({ queryKey: ["admin-events"], queryFn: () => api.get<Event[]>("/api/admin/events") });
+  if (!q.data) return null;
+  const now = Date.now();
+  const next = q.data.filter((e) => new Date(e.endsAt).getTime() >= now).slice(0, 3);
+  if (next.length === 0) {
+    return (
+      <section className="rounded-lg bg-card p-4 shadow-sm">
+        <h2 className="font-semibold">Events</h2>
+        <p className="text-sm text-muted-foreground">No upcoming events yet. <Link to="/admin/events/new" className="underline">Create the first one</Link>.</p>
+      </section>
+    );
+  }
+  return (
+    <section className="space-y-2" aria-label="Next events">
+      <h2 className="font-semibold">Next events</h2>
+      <div className="grid gap-2 lg:grid-cols-2">
+        {next.map((e) => {
+          const c = checkinState(e.startsAt, e.endsAt, now);
+          return (
+            <div key={e.id} className="space-y-2 rounded-lg bg-card p-3 shadow-sm">
+              <div>
+                <SubjectBadge subject={e.subject} />
+                <b>{e.title}</b>
+                <div className="text-sm text-muted-foreground">{fmtDateTime(e.startsAt)}{e.venue && ` · ${e.venue}`}</div>
+              </div>
+              <p className={`text-sm ${c.state === "open" ? "font-medium text-emerald-700" : "text-muted-foreground"}`}>
+                {c.state === "open" ? "✅ Check-in is open now" : `Check-in opens ${inWords(c.opensAt, now)} (${fmtDateTime(c.opensAt.toISOString())})`}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm"><Link to={`/admin/events/${e.id}/display`}>Show check-in QR</Link></Button>
+                <Button asChild size="sm" variant="outline"><Link to={`/admin/events/${e.id}`}>Check people in</Link></Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function TaskCard({ to, title, text, note }: { to: string; title: string; text: string; note?: string }) {
+  return (
+    <Link to={to} className="block rounded-lg bg-card p-4 shadow-sm hover:bg-accent">
+      <div className="font-semibold">{title}</div>
+      <div className="text-sm text-muted-foreground">{text}</div>
+      {note && <div className="mt-1 text-xs text-emerald-700">{note}</div>}
+    </Link>
+  );
+}
+
 export default function Dashboard() {
   const { me } = useAuth();
   const q = useQuery({ queryKey: ["admin-stats"], queryFn: () => api.get<{ events: number; checkins: number; users: number; exhibits: number }>("/api/admin/stats") });
@@ -131,15 +188,35 @@ export default function Dashboard() {
   const [role, setRole] = useState("teacher");
   const set = useMutation({ mutationFn: () => api.post("/api/admin/users/role", { email, role }) });
   const s = q.data;
+  const n = (count: number | undefined, one: string, many: string) => (count ? `${count} ${count === 1 ? one : many} so far` : undefined);
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Teacher portal</h1>
+        <p className="text-sm text-muted-foreground">Welcome{me ? `, ${me.name}` : ""}. Pick what you want to do. New here? <Link to="/admin/help" className="underline">Read the short guide</Link>.</p>
+      </div>
+
+      <Today />
+
+      <section className="space-y-2" aria-label="What would you like to do?">
+        <h2 className="font-semibold">What would you like to do?</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <TaskCard to="/admin/events/new" title="Set up an event" text="Date, place, description and a picture. Optionally sign-up and a competition." note={n(s?.events, "event", "events")} />
+          <TaskCard to="/admin/exhibits" title="Add exhibits" text="One page and a printable QR sign for each installation, grouped into exhibitions." note={n(s?.exhibits, "exhibit", "exhibits")} />
+          <TaskCard to="/admin/competitions" title="Record competition results" text="Scores, ranks and who is in each competition." />
+          <TaskCard to="/admin/awards" title="Give awards" text="Choose students, write a reason, then publish when you are ready." />
+          <TaskCard to="/admin/events" title="See all events" text="Edit, copy or delete an event, and see who came." />
+          <TaskCard to="/admin/help" title="How does it work?" text="A short guide for the day of an event, with answers to common questions." />
+        </div>
+      </section>
+
       {s && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(
             [["Events", s.events], ["Check-ins", s.checkins], ["Users", s.users], ["Exhibits", s.exhibits]] as const
-          ).map(([l, n]) => (
+          ).map(([l, c]) => (
             <Card key={l} className="p-4 text-center">
-              <div className="text-3xl font-bold">{n}</div>
+              <div className="text-3xl font-bold">{c}</div>
               {l}
             </Card>
           ))}
@@ -156,14 +233,14 @@ export default function Dashboard() {
           className="flex flex-wrap gap-2 rounded-lg bg-card p-4 shadow-sm"
         >
           <b className="w-full">Set a user&apos;s role</b>
-          <Input name="email" type="email" placeholder="user email" required className="w-auto" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Select name="role" className="w-auto" value={role} onChange={(e) => setRole(e.target.value)}>
+          <p className="w-full text-sm text-muted-foreground">Make someone a teacher (can use this portal) or an admin (can also change roles and load the student list).</p>
+          <Input name="email" type="email" placeholder="user email" required className="w-auto" value={email} onChange={(e) => { setEmail(e.target.value); set.reset(); }} />
+          <Select name="role" className="w-auto" value={role} onChange={(e) => { setRole(e.target.value); set.reset(); }}>
             <option>student</option>
             <option>teacher</option>
             <option>admin</option>
           </Select>
-          <SaveButton pending={set.isPending}>Save</SaveButton>
-          {set.isSuccess && <span className="self-center text-sm text-emerald-700">Saved</span>}
+          <SaveButton pending={set.isPending} dirty={set.isSuccess ? false : undefined} saved={set.isSuccess}>Save</SaveButton>
           <FormError error={set.error} />
         </form>
       )}

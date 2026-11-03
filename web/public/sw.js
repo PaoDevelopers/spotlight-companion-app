@@ -41,7 +41,7 @@ self.addEventListener("fetch", (e) => {
   } else if (url.pathname.startsWith("/api/images/")) {
     // uploaded pictures never change (a new picture gets a new number), so keep them for offline exhibit pages
     e.respondWith(caches.open(CACHE).then(async (c) => (await c.match(req)) ?? fetch(req).then((r) => { if (r.ok) c.put(req, r.clone()); return r; })));
-  } else if (url.pathname === "/api/exhibits" || url.pathname.startsWith("/api/exhibits/")) {
+  } else if (url.pathname === "/api/exhibits" || url.pathname === "/api/exhibitions" || url.pathname.startsWith("/api/exhibits/")) {
     e.respondWith(networkFirst(req));
   }
 });

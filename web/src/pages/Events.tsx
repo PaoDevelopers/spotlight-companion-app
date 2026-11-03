@@ -10,6 +10,7 @@ import { api, errorMessage } from "@/lib/api";
 import { fmtDateTime, fmtLongDateTime } from "@/lib/format";
 import { SUBJECTS } from "@/lib/subjects";
 import { kindLabel } from "@/lib/competition";
+import { checkinState } from "@/lib/checkin";
 import { cn } from "@/lib/utils";
 import type { Event } from "@/lib/types";
 
@@ -68,7 +69,7 @@ export function EventDetail() {
       {e.description && <Prose>{e.description}</Prose>}
       <SignupBox event={e} signedUp={signedUp} checkedIn={checkedIn} />
       <div className={cn("rounded-lg p-3", checkedIn ? "bg-emerald-100" : "bg-card shadow-sm")}>
-        {checkedIn ? "✅ You're checked in" : "Scan the QR at the venue (Scan tab) or tap the NFC tag to check in."}
+        {checkedIn ? "✅ You're checked in" : <CheckinHint event={e} />}
       </div>
       {competitions.map((c) =>
         c.myStatus ? (
@@ -84,6 +85,13 @@ export function EventDetail() {
 }
 
 /** Reserve a place ahead of time. A student without a phone on the day is still found on the teacher's list. */
+function CheckinHint({ event: e }: { event: Event }) {
+  const c = checkinState(e.startsAt, e.endsAt);
+  if (c.state === "over") return <>This event has ended.</>;
+  if (c.state === "early") return <>Check-in opens {fmtLongDateTime(c.opensAt.toISOString())}. Then scan the QR at the venue (Scan tab) or tap the NFC tag.</>;
+  return <>Check-in is open. Scan the QR at the venue (Scan tab) or tap the NFC tag.</>;
+}
+
 function SignupBox({ event: e, signedUp, checkedIn }: { event: Event; signedUp: boolean; checkedIn: boolean }) {
   const qc = useQueryClient();
   const done = () => Promise.all([qc.invalidateQueries({ queryKey: ["event", String(e.id)] }), qc.invalidateQueries({ queryKey: ["events"] })]);

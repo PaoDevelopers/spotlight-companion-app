@@ -27,9 +27,11 @@ const adminExhibits = () => import("@/pages/admin/Exhibits");
 const AdminExhibits = lazy(() => adminExhibits());
 const AdminExhibitDetail = lazy(() => adminExhibits().then((m) => ({ default: m.AdminExhibitDetail })));
 const AdminExhibitSign = lazy(() => adminExhibits().then((m) => ({ default: m.AdminExhibitSign })));
+const AdminExhibitionEdit = lazy(() => import("@/pages/admin/ExhibitionEditor").then((m) => ({ default: m.AdminExhibitionEdit })));
 const AdminExhibitEdit = lazy(() => import("@/pages/admin/ExhibitEditor").then((m) => ({ default: m.AdminExhibitEdit })));
 const AdminCompetitions = lazy(() => import("@/pages/admin/Competitions"));
 const AdminAwards = lazy(() => import("@/pages/admin/Awards"));
+const Help = lazy(() => import("@/pages/admin/Help"));
 const Roster = lazy(() => import("@/pages/admin/Roster"));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
@@ -74,9 +76,12 @@ function App() {
         <Route path="exhibits/:id" element={<AdminExhibitDetail />} />
         <Route path="exhibits/:id/edit" element={<AdminExhibitEdit />} />
         <Route path="exhibits/:id/sign" element={<AdminExhibitSign />} />
+        <Route path="exhibitions/new" element={<AdminExhibitionEdit />} />
+        <Route path="exhibitions/:id/edit" element={<AdminExhibitionEdit />} />
         <Route path="competitions" element={<AdminCompetitions />} />
         <Route path="awards" element={<AdminAwards />} />
         <Route path="roster" element={<Roster />} />
+        <Route path="help" element={<Help />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

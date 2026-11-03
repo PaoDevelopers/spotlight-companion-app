@@ -75,7 +75,7 @@ check-in: walk-ins can't take it. A student without a device is found by the tea
 
 `POST /api/competitions/{id}/register` `{"team": ""}` → 204. Registering twice is harmless.
 
-`GET /api/exhibits` → `[{id,slug,title,subject,summary,bodyMd,imageUrl|null,visited}]`.
+`GET /api/exhibits` → `[{id,slug,title,subject,summary,bodyMd,imageUrl|null,exhibitionId|null,visited}]`.
 `GET /api/exhibits/{slug}` → `{"exhibit":Exhibit,"visited":bool}`. `bodyMd` is Markdown:
 render it with a Markdown component that does **not** allow raw HTML.
 
@@ -127,9 +127,15 @@ Check-in codes contain dots, dashes and underscores; do not treat them as file n
   recognised from the bytes (SVG and everything else → `422 invalid`). Put the `url` in Markdown as `![text](/api/images/<id>)` or in `imageUrl`.
 - `GET /api/images/{id}` (any signed-in user) → the picture; never changes, so it is cached for a year.
 
+**Exhibitions** (named groups of exhibits, such as "Physics Exhibition")
+- `GET /api/admin/exhibitions` → `[{id,title,subject,summary,bodyMd,imageUrl|null,total,visited:0}]` (`total` = exhibits in it).
+- `POST /api/admin/exhibitions` `{title,subject,summary,bodyMd,imageUrl}` → 201. `PUT /api/admin/exhibitions/{id}` same body → 200.
+  `DELETE /api/admin/exhibitions/{id}` → 204: only the grouping goes; its exhibits stay and become standalone.
+- Students: `GET /api/exhibitions` → the same list, with `visited` = how many of its exhibits this student has scanned.
+
 **Exhibits**
 - `GET /api/admin/exhibits` → `[Exhibit + tagToken + tagUrl + visits]` (`tagUrl` = permanent link for the exhibit's QR/NFC tag; `visits` = students who scanned it).
-- `POST /api/admin/exhibits` `{title,subject,summary,bodyMd,imageUrl,slug?}` → 201 `Exhibit + tag`. Always a new exhibit: the web address (`slug`) is made from the
+- `POST /api/admin/exhibits` `{title,subject,summary,bodyMd,imageUrl,exhibitionId?,slug?}` (`exhibitionId` puts it in an exhibition; absent/null = standalone; an id that does not exist is `422`) → 201 `Exhibit + tag`. Always a new exhibit: the web address (`slug`) is made from the
   title (a title with no Latin letters, such as a Chinese one, becomes `exhibit`) and numbered `-2`, `-3`... if taken, so nothing is overwritten. A `slug` you
   pass that is already used is refused with `409 exists`. `imageUrl` must be `https://...` or a `/path` (for example `/api/images/3`).
 - `PUT /api/admin/exhibits/{id}` same body (any `slug` is ignored) → `Exhibit + tag`. The web address and the QR/NFC tag never change when an exhibit is edited.

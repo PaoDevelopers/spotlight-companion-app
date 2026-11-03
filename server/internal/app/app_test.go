@@ -163,7 +163,7 @@ func TestNFCPassAndExhibitTags(t *testing.T) {
 		t.Errorf("CSV not neutralised: %q", csv)
 	}
 
-	x, err := a.SaveExhibit(ctx, ExhibitInput{Title: "Wave Tank", Subject: "physics"})
+	x, err := a.CreateExhibit(ctx, ExhibitInput{Title: "Wave Tank", Subject: "physics"})
 	if err != nil || x.Slug != "wave-tank" {
 		t.Fatalf("%+v %v", x, err)
 	}

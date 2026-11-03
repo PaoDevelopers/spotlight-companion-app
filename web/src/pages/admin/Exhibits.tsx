@@ -1,103 +1,128 @@
-import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
-import { MarkdownEditor } from "@/components/MarkdownEditor";
+import { SubjectBadge } from "@/components/ui/badge";
 import { QrImage } from "@/components/QrImage";
-import { CoverImageField } from "@/components/CoverImageField";
-import { SUBJECTS } from "@/lib/subjects";
 import { api } from "@/lib/api";
 import type { Exhibit } from "@/lib/types";
-import { FormError, SaveButton, panel } from "./shared";
+import { FormError, panel } from "./shared";
 
-type AdminExhibit = Exhibit & { tagToken: string; tagUrl: string };
+export type AdminExhibit = Exhibit & { tagToken: string; tagUrl: string; visits: number };
 
-interface Draft {
-  title: string;
-  slug: string;
-  subject: string;
-  imageUrl: string;
-  summary: string;
-  bodyMd: string;
-}
-const EMPTY: Draft = { title: "", slug: "", subject: "physics", imageUrl: "", summary: "", bodyMd: "" };
+export const useAdminExhibits = () => useQuery({ queryKey: ["admin-exhibits"], queryFn: () => api.get<AdminExhibit[]>("/api/admin/exhibits") });
+
+const Thumb = ({ url }: { url: string | null }) =>
+  url ? <img src={url} alt="" className="size-12 shrink-0 rounded object-cover" /> : <div className="size-12 shrink-0 rounded bg-muted" aria-hidden />;
 
 export default function AdminExhibits() {
-  const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["admin-exhibits"], queryFn: () => api.get<AdminExhibit[]>("/api/admin/exhibits") });
-  const [d, setD] = useState<Draft>(EMPTY);
-  const [editing, setEditing] = useState(false);
-  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
-  const save = useMutation({
-    mutationFn: (body: object) => api.post<AdminExhibit>("/api/admin/exhibits", body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-exhibits"] });
-      qc.invalidateQueries({ queryKey: ["exhibits"] });
-      qc.invalidateQueries({ queryKey: ["exhibit"] });
-      setD(EMPTY);
-      setEditing(false);
-    },
-  });
-  const remove = useMutation({
-    mutationFn: (id: number) => api.del(`/api/admin/exhibits/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-exhibits"] });
-      qc.invalidateQueries({ queryKey: ["exhibits"] });
-    },
-  });
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    save.mutate(d);
-  }
-  function edit(x: AdminExhibit) {
-    setD({ title: x.title, slug: x.slug, subject: x.subject, imageUrl: x.imageUrl ?? "", summary: x.summary, bodyMd: x.bodyMd });
-    setEditing(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
+  const q = useAdminExhibits();
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Exhibits</h1>
-      <form className={`${panel} grid gap-3 sm:grid-cols-2`} onSubmit={submit}>
-        <h2 className="font-semibold sm:col-span-2">{editing ? `Editing “${d.title}”` : "New exhibit"}</h2>
-        <Input name="title" required placeholder="Title" value={d.title} onChange={(e) => set("title", e.target.value)} />
-        <Input name="slug" placeholder="URL slug (optional)" value={d.slug} readOnly={editing} onChange={(e) => set("slug", e.target.value)} />
-        <Select name="subject" value={d.subject} onChange={(e) => set("subject", e.target.value)}>
-          {SUBJECTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </Select>
-        <div className="sm:col-span-2">
-          <CoverImageField name="imageUrl" value={d.imageUrl} onChange={(v) => set("imageUrl", v)} />
-        </div>
-        <Input name="summary" placeholder="One-line summary" value={d.summary} onChange={(e) => set("summary", e.target.value)} className="sm:col-span-2" />
-        <div className="sm:col-span-2">
-          <MarkdownEditor name="bodyMd" value={d.bodyMd} onChange={(v) => set("bodyMd", v)} rows={8} placeholder={"## What you're seeing\n## How it works\n## Try this"} />
-        </div>
-        <FormError error={save.error} />
-        <div className="flex gap-2 sm:col-span-2">
-          <SaveButton pending={save.isPending}>Save exhibit</SaveButton>
-          {editing && <Button type="button" variant="outline" onClick={() => { setD(EMPTY); setEditing(false); }}>Cancel</Button>}
-        </div>
-      </form>
-      <FormError error={remove.error} />
-      <p className="text-sm text-muted-foreground">Print a QR (or write the URL to an NFC tag) for each exhibit and place it at the installation.</p>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Exhibits</h1>
+        <Button asChild><Link to="/admin/exhibits/new">New exhibit</Link></Button>
+      </div>
+      {q.data && q.data.length === 0 && <p className="text-muted-foreground">No exhibits yet. Add the first installation.</p>}
+      <div className="grid gap-2 lg:grid-cols-2">
         {q.data?.map((x) => (
-          <div key={x.id} className="rounded-lg bg-card p-3 text-center shadow-sm">
-            <b>{x.title}</b>
-            <div className="flex justify-center"><QrImage text={x.tagUrl} size={160} /></div>
-            <code className="break-all text-[10px]">{x.tagUrl}</code>
-            <div className="mt-1 flex justify-center gap-4 text-sm">
-              <button type="button" className="underline" onClick={() => edit(x)}>Edit</button>
-              <button
-                type="button"
-                className="text-red-700 underline"
-                disabled={remove.isPending}
-                onClick={() => { if (window.confirm(`Delete “${x.title}”? Its printed QR code will stop working and visits are forgotten.`)) remove.mutate(x.id); }}
-              >
-                Delete
-              </button>
+          <Link key={x.id} to={`/admin/exhibits/${x.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm hover:bg-accent">
+            <Thumb url={x.imageUrl} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate">
+                <SubjectBadge subject={x.subject} />
+                <b>{x.title}</b>
+              </div>
+              <div className="truncate text-sm text-muted-foreground">{x.summary || "No summary yet"}</div>
             </div>
-          </div>
+            <div className="text-right text-sm text-muted-foreground">
+              {x.visits} {x.visits === 1 ? "visit" : "visits"}
+            </div>
+          </Link>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** One exhibit: its QR/NFC tag for the installation, how many students visited, and edit / delete. */
+export function AdminExhibitDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const q = useAdminExhibits();
+  const del = useMutation({
+    mutationFn: () => api.del(`/api/admin/exhibits/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-exhibits"] });
+      qc.invalidateQueries({ queryKey: ["exhibits"] });
+      navigate("/admin/exhibits", { replace: true });
+    },
+  });
+  if (!q.data) return null;
+  const x = q.data.find((e) => String(e.id) === id);
+  if (!x) return <p>Exhibit not found.</p>;
+  return (
+    <div className="space-y-6">
+      <header className="space-y-2">
+        {x.imageUrl && <img src={x.imageUrl} alt="" className="h-40 w-full rounded-lg object-cover md:h-56" />}
+        <div>
+          <SubjectBadge subject={x.subject} />
+          <h1 className="inline text-2xl font-bold">{x.title}</h1>
+        </div>
+        {x.summary && <p className="text-muted-foreground">{x.summary}</p>}
+        <div className="flex flex-wrap gap-2">
+          <Button asChild><Link to={`/admin/exhibits/${x.id}/edit`}>Edit exhibit</Link></Button>
+          <Button asChild variant="outline"><Link to={`/admin/exhibits/${x.id}/sign`}>Print QR sign</Link></Button>
+          <Button asChild variant="outline"><Link to={`/exhibits/${x.slug}`}>See it as a student</Link></Button>
+        </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="rounded-lg bg-card p-4 text-center shadow-sm">
+          <div className="text-3xl font-bold">{x.visits}</div>
+          <div className="text-sm text-muted-foreground">{x.visits === 1 ? "student has" : "students have"} scanned this exhibit</div>
+        </div>
+        <section className={panel}>
+          <h2 className="font-semibold">QR code / NFC tag for the installation</h2>
+          <p className="mb-2 text-sm text-muted-foreground">
+            Print the sign and put it at the installation, or write this address to an NFC tag. It never changes when you edit the exhibit, so a printed sign stays valid.
+          </p>
+          <code className="block break-all text-xs">{x.tagUrl}</code>
+          <div className="mt-2"><QrImage text={x.tagUrl} size={160} /></div>
+        </section>
+      </div>
+
+      <FormError error={del.error} />
+      <button
+        className="text-red-700 underline"
+        disabled={del.isPending}
+        onClick={() => { if (window.confirm(`Delete “${x.title}”? Its printed QR code will stop working and the ${x.visits} recorded visits are forgotten.`)) del.mutate(); }}
+      >
+        Delete exhibit
+      </button>
+    </div>
+  );
+}
+
+/** A sign to print and put next to the installation: the QR code, big, with the name and what to do. */
+export function AdminExhibitSign() {
+  const { id } = useParams();
+  const q = useAdminExhibits();
+  if (!q.data) return null;
+  const x = q.data.find((e) => String(e.id) === id);
+  if (!x) return <p>Exhibit not found.</p>;
+  return (
+    <div className="space-y-4">
+      <div className="no-print flex gap-2">
+        <Button onClick={() => window.print()}>Print</Button>
+        <Button asChild variant="outline"><Link to={`/admin/exhibits/${x.id}`}>Back</Link></Button>
+      </div>
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-4 rounded-lg border-2 border-foreground bg-white p-8 text-center text-black print:border-0">
+        <h1 className="text-4xl font-bold">{x.title}</h1>
+        {x.summary && <p className="text-xl">{x.summary}</p>}
+        <QrImage text={x.tagUrl} size={340} />
+        <p className="text-2xl font-semibold">Scan to learn about this exhibit and log your visit</p>
+        <p className="text-base">Spotlight Month app: tap “Scan”, or use your phone's camera. No phone? Tell a teacher.</p>
       </div>
     </div>
   );

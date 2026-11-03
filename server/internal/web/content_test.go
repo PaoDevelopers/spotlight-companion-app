@@ -106,7 +106,7 @@ func TestDeleteExhibitCompetitionAndChemistry(t *testing.T) {
 	if !titles["Reactions"] || titles["Rube Goldberg Contest"] || titles["Hackathon"] {
 		t.Fatalf("chemistry filter: %+v", found)
 	}
-	teacher.mustStatus(200, "POST", "/api/admin/exhibits", map[string]any{"title": "Indicators", "subject": "chemistry"})
+	teacher.mustStatus(201, "POST", "/api/admin/exhibits", map[string]any{"title": "Indicators", "subject": "chemistry"})
 	ev["subject"] = "biology"
 	teacher.mustStatus(422, "POST", "/api/admin/events", ev)
 
@@ -310,6 +310,48 @@ func TestAdminUploadsTheStudentList(t *testing.T) {
 	for name, payload := range map[string][]byte{"text": []byte("hello"), "empty": {}, "wrong csv": []byte("a,b\n1,2\n"), "png": tinyPNG} {
 		if res, _ := admin.upload("/api/admin/students/import", payload); res.StatusCode != 422 {
 			t.Errorf("%s should be refused with 422, got %d", name, res.StatusCode)
+		}
+	}
+}
+
+func TestExhibitCreateUpdateOverHTTP(t *testing.T) {
+	_, teacher, student := seeded(t)
+	type view struct {
+		ID       int64
+		Slug     string
+		Title    string
+		TagURL   string
+		Visits   int64
+		ImageURL *string
+	}
+	body := map[string]any{"title": "Wave Tank", "subject": "physics", "summary": "ripples", "bodyMd": "## Hi"}
+	a := decode[view](t, teacher.mustStatus(201, "POST", "/api/admin/exhibits", body))
+	b := decode[view](t, teacher.mustStatus(201, "POST", "/api/admin/exhibits", body)) // same title: a new exhibit
+	if a.ID == b.ID || a.Slug != "wave-tank" || b.Slug != "wave-tank-2" {
+		t.Fatalf("%+v %+v", a, b)
+	}
+	teacher.mustStatus(409, "POST", "/api/admin/exhibits", map[string]any{"title": "x", "subject": "cs", "slug": "wave-tank"})
+	teacher.mustStatus(422, "POST", "/api/admin/exhibits", map[string]any{"title": "x", "subject": "cs", "imageUrl": "javascript:alert(1)"})
+	student.mustStatus(403, "POST", "/api/admin/exhibits", body)
+	student.mustStatus(403, "PUT", "/api/admin/exhibits/"+itoa(a.ID), body)
+
+	body["title"] = "Wave Tank v2"
+	body["imageUrl"] = "/api/images/9"
+	up := decode[view](t, teacher.mustStatus(200, "PUT", "/api/admin/exhibits/"+itoa(a.ID), body))
+	if up.Slug != "wave-tank" || up.Title != "Wave Tank v2" || up.TagURL != a.TagURL || up.ImageURL == nil {
+		t.Fatalf("an edit must keep the address and the QR tag: %+v vs %+v", up, a)
+	}
+	teacher.mustStatus(404, "PUT", "/api/admin/exhibits/99999", body)
+
+	// the student scans the tag, and the teacher's list counts the visit
+	student.mustStatus(200, "POST", "/api/scan", map[string]string{"code": a.TagURL})
+	list := decode[[]view](t, teacher.mustStatus(200, "GET", "/api/admin/exhibits", nil))
+	for _, x := range list {
+		if x.ID == a.ID && x.Visits != 1 {
+			t.Fatalf("visit not counted: %+v", x)
+		}
+		if x.ID == b.ID && x.Visits != 0 {
+			t.Fatalf("visit counted on the wrong exhibit: %+v", x)
 		}
 	}
 }

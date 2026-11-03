@@ -23,7 +23,11 @@ const AdminDisplay = lazy(() => loadAdminEvents().then((m) => ({ default: m.Admi
 const AdminScanPasses = lazy(() => loadAdminEvents().then((m) => ({ default: m.AdminScanPasses })));
 const AdminSheet = lazy(() => loadAdminEvents().then((m) => ({ default: m.AdminSheet })));
 const AdminEventEdit = lazy(() => import("@/pages/admin/EventEditor").then((m) => ({ default: m.AdminEventEdit })));
-const AdminExhibits = lazy(() => import("@/pages/admin/Exhibits"));
+const adminExhibits = () => import("@/pages/admin/Exhibits");
+const AdminExhibits = lazy(() => adminExhibits());
+const AdminExhibitDetail = lazy(() => adminExhibits().then((m) => ({ default: m.AdminExhibitDetail })));
+const AdminExhibitSign = lazy(() => adminExhibits().then((m) => ({ default: m.AdminExhibitSign })));
+const AdminExhibitEdit = lazy(() => import("@/pages/admin/ExhibitEditor").then((m) => ({ default: m.AdminExhibitEdit })));
 const AdminCompetitions = lazy(() => import("@/pages/admin/Competitions"));
 const AdminAwards = lazy(() => import("@/pages/admin/Awards"));
 const Roster = lazy(() => import("@/pages/admin/Roster"));
@@ -66,6 +70,10 @@ function App() {
         <Route path="events/:id/display" element={<AdminDisplay />} />
         <Route path="events/:id/scan" element={<AdminScanPasses />} />
         <Route path="exhibits" element={<AdminExhibits />} />
+        <Route path="exhibits/new" element={<AdminExhibitEdit />} />
+        <Route path="exhibits/:id" element={<AdminExhibitDetail />} />
+        <Route path="exhibits/:id/edit" element={<AdminExhibitEdit />} />
+        <Route path="exhibits/:id/sign" element={<AdminExhibitSign />} />
         <Route path="competitions" element={<AdminCompetitions />} />
         <Route path="awards" element={<AdminAwards />} />
         <Route path="roster" element={<Roster />} />

@@ -128,10 +128,11 @@ Check-in codes contain dots, dashes and underscores; do not treat them as file n
 - `GET /api/images/{id}` (any signed-in user) → the picture; never changes, so it is cached for a year.
 
 **Exhibits**
-- `GET /api/admin/exhibits` → `[Exhibit + tagToken + tagUrl]` (`tagUrl` = permanent link for the exhibit's QR/NFC tag).
-- `POST /api/admin/exhibits` `{title,slug,subject,summary,bodyMd,imageUrl}` → `Exhibit + tag`. Saving with an
-  existing slug updates it. `imageUrl` must be `https://...` or a `/path`.
-
+- `GET /api/admin/exhibits` → `[Exhibit + tagToken + tagUrl + visits]` (`tagUrl` = permanent link for the exhibit's QR/NFC tag; `visits` = students who scanned it).
+- `POST /api/admin/exhibits` `{title,subject,summary,bodyMd,imageUrl,slug?}` → 201 `Exhibit + tag`. Always a new exhibit: the web address (`slug`) is made from the
+  title (a title with no Latin letters, such as a Chinese one, becomes `exhibit`) and numbered `-2`, `-3`... if taken, so nothing is overwritten. A `slug` you
+  pass that is already used is refused with `409 exists`. `imageUrl` must be `https://...` or a `/path` (for example `/api/images/3`).
+- `PUT /api/admin/exhibits/{id}` same body (any `slug` is ignored) → `Exhibit + tag`. The web address and the QR/NFC tag never change when an exhibit is edited.
 - `DELETE /api/admin/exhibits/{id}` → 204 (its visits go with it; its printed QR stops working). Unknown id → 404.
 
 **Competitions**

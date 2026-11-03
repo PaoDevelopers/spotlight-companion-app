@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
@@ -242,6 +241,12 @@ type exhibitAdminView struct {
 	app.Exhibit
 	TagToken string `json:"tagToken"`
 	TagURL   string `json:"tagUrl"`
+	Visits   int64  `json:"visits"`
+}
+
+func (s *Server) exhibitView(x app.Exhibit, visits int64) exhibitAdminView {
+	t := token.MakeTag(s.app.Cfg.Secret, token.KindExhibit, x.ID)
+	return exhibitAdminView{x, t, s.app.Cfg.PublicURL + "/c/" + t, visits}
 }
 
 func (s *Server) adminExhibits(w http.ResponseWriter, r *http.Request, u app.User) {
@@ -250,37 +255,65 @@ func (s *Server) adminExhibits(w http.ResponseWriter, r *http.Request, u app.Use
 		s.serverError(w, r, err)
 		return
 	}
+	visits, err := s.app.ExhibitVisitCounts(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	out := make([]exhibitAdminView, 0, len(list))
 	for _, x := range list {
-		t := token.MakeTag(s.app.Cfg.Secret, token.KindExhibit, x.ID)
-		out = append(out, exhibitAdminView{x, t, s.app.Cfg.PublicURL + "/c/" + t})
+		out = append(out, s.exhibitView(x, visits[x.ID]))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
-func (s *Server) adminSaveExhibit(w http.ResponseWriter, r *http.Request, u app.User) {
-	var in struct {
-		Title    string `json:"title"`
-		Slug     string `json:"slug"`
-		Subject  string `json:"subject"`
-		Summary  string `json:"summary"`
-		BodyMD   string `json:"bodyMd"`
-		ImageURL string `json:"imageUrl"`
-	}
+type exhibitBody struct {
+	Title    string `json:"title"`
+	Slug     string `json:"slug"`
+	Subject  string `json:"subject"`
+	Summary  string `json:"summary"`
+	BodyMD   string `json:"bodyMd"`
+	ImageURL string `json:"imageUrl"`
+}
+
+func (b exhibitBody) input() app.ExhibitInput {
+	return app.ExhibitInput{Slug: b.Slug, Title: b.Title, Subject: b.Subject, Summary: b.Summary, BodyMD: b.BodyMD, ImageURL: b.ImageURL}
+}
+
+// adminCreateExhibit adds a new exhibit. It never overwrites an existing one.
+func (s *Server) adminCreateExhibit(w http.ResponseWriter, r *http.Request, u app.User) {
+	var in exhibitBody
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if img := strings.TrimSpace(in.ImageURL); img != "" && !strings.HasPrefix(img, "https://") && (!strings.HasPrefix(img, "/") || strings.HasPrefix(img, "//")) {
-		s.appError(w, r, app.ErrInvalid) // no javascript: or data: URLs in the image field
-		return
-	}
-	x, err := s.app.SaveExhibit(r.Context(), app.ExhibitInput{Slug: in.Slug, Title: in.Title, Subject: in.Subject, Summary: in.Summary, BodyMD: in.BodyMD, ImageURL: in.ImageURL})
+	x, err := s.app.CreateExhibit(r.Context(), in.input())
 	if err != nil {
 		s.appError(w, r, err)
 		return
 	}
-	t := token.MakeTag(s.app.Cfg.Secret, token.KindExhibit, x.ID)
-	writeJSON(w, http.StatusOK, exhibitAdminView{x, t, s.app.Cfg.PublicURL + "/c/" + t})
+	writeJSON(w, http.StatusCreated, s.exhibitView(x, 0))
+}
+
+func (s *Server) adminUpdateExhibit(w http.ResponseWriter, r *http.Request, u app.User) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	var in exhibitBody
+	if !readJSON(w, r, &in) {
+		return
+	}
+	x, err := s.app.UpdateExhibit(r.Context(), id, in.input())
+	if err != nil {
+		s.appError(w, r, err)
+		return
+	}
+	visits, err := s.app.ExhibitVisitCounts(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, s.exhibitView(x, visits[x.ID]))
 }
 
 type compAdminView struct {

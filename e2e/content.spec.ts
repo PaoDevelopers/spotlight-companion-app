@@ -59,14 +59,14 @@ test("teacher adds pictures to an event and an exhibit, uses chemistry, deletes 
   await expect(student.getByRole("button", { name: /Back/ })).toBeVisible();
 
   // an exhibit with a picture in its text, then delete it
-  await page.goto("/admin/exhibits");
+  await page.goto("/admin/exhibits/new");
   await page.fill('input[name="title"]', "Wrong Exhibit");
   await page.locator('input[aria-label="Choose pictures"]').setInputFiles({ name: "x.png", mimeType: "image/png", buffer: PNG });
   await expect(page.locator('textarea[name="bodyMd"]')).toHaveValue(/!\[x\]\(\/api\/images\/\d+\)/);
-  await page.getByRole("button", { name: "Save exhibit" }).click();
-  const card = page.locator("div", { hasText: /^Wrong Exhibit/ }).last();
-  await expect(card).toBeVisible();
-  await card.getByRole("button", { name: "Delete" }).click();
+  await page.getByRole("button", { name: "Create exhibit" }).click();
+  await expect(page).toHaveURL(/\/admin\/exhibits\/\d+$/);
+  await page.getByRole("button", { name: "Delete exhibit" }).click();
+  await expect(page).toHaveURL(/\/admin\/exhibits$/);
   await expect(page.getByText("Wrong Exhibit")).toHaveCount(0);
 
   // delete the event from its edit page

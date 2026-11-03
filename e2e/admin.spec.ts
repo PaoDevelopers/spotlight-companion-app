@@ -87,14 +87,24 @@ test("teacher portal: events, exhibits, competitions, awards, roster", async ({ 
   await expect(page).toHaveURL(new RegExp(`/admin/events/${eventId}$`));
   await expect(page.getByRole("heading", { name: "Lab Open Night (updated)" })).toBeVisible();
 
-  // Exhibit with creator, printable QR
-  await page.goto("/admin/exhibits");
-  await page.fill('input[name="title"]', "Wave Tank");
-  await page.fill('input[name="summary"]', "Ripples and interference");
-  await page.fill('textarea[name="bodyMd"]', "## How it works\nWaves add up.");
-  if (!GO) await page.fill('input[name="owners"]', "student@demo.school"); // Go: awards are chosen by teachers, there is no creators field
-  await page.getByRole("button", { name: "Save exhibit" }).click();
-  await expect(page.getByText("Wave Tank").first()).toBeVisible();
+  // Exhibit, printable QR
+  if (GO) {
+    await page.goto("/admin/exhibits/new");
+    await page.fill('input[name="title"]', "Wave Tank");
+    await page.fill('input[name="summary"]', "Ripples and interference");
+    await page.fill('textarea[name="bodyMd"]', "## How it works\nWaves add up.");
+    await page.getByRole("button", { name: "Create exhibit" }).click();
+    await expect(page).toHaveURL(/\/admin\/exhibits\/\d+$/);
+    await expect(page.getByRole("heading", { name: "Wave Tank" })).toBeVisible();
+  } else {
+    await page.goto("/admin/exhibits");
+    await page.fill('input[name="title"]', "Wave Tank");
+    await page.fill('input[name="summary"]', "Ripples and interference");
+    await page.fill('textarea[name="bodyMd"]', "## How it works\nWaves add up.");
+    await page.fill('input[name="owners"]', "student@demo.school");
+    await page.getByRole("button", { name: "Save exhibit" }).click();
+    await expect(page.getByText("Wave Tank").first()).toBeVisible();
+  }
   await expect(page.locator("code", { hasText: "/c/exhibit." }).first()).toBeVisible();
   await shot("exhibits");
 

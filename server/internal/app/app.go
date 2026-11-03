@@ -36,6 +36,7 @@ var (
 	ErrClosed    = errors.New("check-in is not open for this event")
 	ErrFull      = errors.New("this event is full")
 	ErrNoSignup  = errors.New("sign-up is not open for this event")
+	ErrExists    = errors.New("that already exists")
 	ErrBadToken  = errors.New("invalid or expired code")
 	ErrInvalid   = errors.New("invalid input")
 	ErrForbidden = errors.New("not allowed")

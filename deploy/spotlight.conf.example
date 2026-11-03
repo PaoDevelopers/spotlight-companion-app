@@ -20,9 +20,10 @@ CHECKIN_SECRET=CHANGE-ME-openssl-rand-hex-32
 # entra  = Microsoft sign-in only (codes are refused)
 AUTH_MODE=roster
 
-# Needed when AUTH_MODE=entra (from the school's app registration; not secrets, and there is no client secret):
+# Needed when AUTH_MODE=entra (from the registration IT made; not secrets, and there is no client secret).
+# Uncomment both lines at the same time as setting AUTH_MODE=entra:
 # OIDC_TENANT_ID=ddd3d26c-b197-4d00-a32d-1ffd84c0c295
-# OIDC_CLIENT_ID=CHANGE-ME-application-client-id
+# OIDC_CLIENT_ID=e42a56a6-39f7-4c8c-be7c-2493fe4ec29c
 
 # Full email addresses that are administrators (can promote teachers). In roster mode a one-time login code for each
 # is printed in the service log on first start (journalctl -u spotlight).

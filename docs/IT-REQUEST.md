@@ -29,3 +29,9 @@ The **Application (client) ID** of the registration (it is not a secret). Nothin
 ## Notes for reference
 - Redirect addresses must match exactly; Microsoft does not allow wildcards. Each address we use must be listed.
 - If anything fails at sign-in, Microsoft shows an error code (for example `AADSTS50011` = redirect address not registered, `AADSTS700054` = ID tokens not enabled). Please forward it to us.
+
+## Reply from IT (3 Nov 2026)
+- Registration created. Application (client) ID `e42a56a6-39f7-4c8c-be7c-2493fe4ec29c`, tenant `ddd3d26c-b197-4d00-a32d-1ffd84c0c295`.
+- Sign-in is limited to staff and high-school students by IT; other accounts are blocked by Microsoft.
+- A `localhost` redirect address is registered for testing only. Ask IT to remove it once the real site signs in.
+- Deploy on the school network only for now; review before publishing to the Internet. IT asked whether it shares the machine with the CCA sign-up (still to answer).

@@ -92,8 +92,9 @@ Then check from a laptop: `https://spotlight.ykpaoschool.cn/healthz` shows `ok` 
 
 ## 6. Switch on Microsoft sign-in (when IT sends the client ID)
 
-In `/etc/spotlight/spotlight.conf` set `AUTH_MODE=entra`, `OIDC_TENANT_ID=ddd3d26c-b197-4d00-a32d-1ffd84c0c295` and
-`OIDC_CLIENT_ID=<the Application (client) ID>`, then `sudo systemctl restart spotlight`. Login codes stop working at
+IT has created the registration (client ID below; neither ID is a secret). In `/etc/spotlight/spotlight.conf` set
+`AUTH_MODE=entra`, `OIDC_TENANT_ID=ddd3d26c-b197-4d00-a32d-1ffd84c0c295` and
+`OIDC_CLIENT_ID=e42a56a6-39f7-4c8c-be7c-2493fe4ec29c`, then `sudo systemctl restart spotlight`. Login codes stop working at
 that moment. Students (`@stu.ykpaoschool.cn`) and staff (`@ykpaoschool.cn`) get accounts the first time they sign in;
 addresses in `ADMIN_EMAILS` become admins. If sign-in fails, Microsoft shows an error code:
 
@@ -105,6 +106,22 @@ addresses in `ADMIN_EMAILS` become admins. If sign-in fails, Microsoft shows an 
 | `AADSTS65001` | admin consent is needed |
 
 To go back to codes, set `AUTH_MODE=roster` and restart.
+
+**After the first successful Microsoft sign-in on the real address, tell IT.** The registration currently also lists a
+`localhost` redirect address that IT only added so we could test; IT wants it removed as soon as the real site works.
+IT has limited sign-in to staff and high-school students, so other accounts are stopped by Microsoft before they reach us.
+
+### School network only (IT's request for now)
+IT would like the site reachable from inside the school only at first, and reviewed before it is put on the Internet.
+This works with Microsoft sign-in: only the browser talks to Microsoft, and the server needs outbound HTTPS to
+`login.microsoftonline.com` only (no inbound Internet traffic). What changes:
+- The DNS name `spotlight.ykpaoschool.cn` is an **internal** record; students at home cannot open the site.
+- HTTPS cannot use an automatic public certificate (Let's Encrypt must reach the server from the Internet). Use the
+  school's own certificate for that name (for example the wildcard CCA uses) with `TLS_CERT`/`TLS_KEY`, or the `tls` line in
+  `Caddyfile.example`.
+- Camera and NFC check-in still work, because the address is `https`.
+- If CCA's server is also used, port 443 is already taken: use a reverse proxy with a separate name, or another port, and
+  put exactly that address in `PUBLIC_URL` and in the registration (Microsoft matches the redirect address exactly).
 
 ## 7. Updating
 

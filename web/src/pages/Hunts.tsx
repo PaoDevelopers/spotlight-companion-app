@@ -4,39 +4,12 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SubjectBadge } from "@/components/ui/badge";
-import { CoverThumb } from "@/components/CoverThumb";
 import { PhotoAdder } from "@/components/PhotoAdder";
 import { Prose } from "@/components/Prose";
 import { api, errorMessage } from "@/lib/api";
 import { fmtDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Hunt, HuntStage, HuntView, StageOutcome } from "@/lib/types";
-
-export function Hunts() {
-  const q = useQuery({ queryKey: ["hunts"], queryFn: () => api.get<{ hunts: HuntView[] }>("/api/hunts") });
-  const hunts = q.data?.hunts ?? [];
-  return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="mb-1 text-2xl font-bold">Scavenger hunts</h1>
-        <p className="text-muted-foreground">Find the evidence at each station. Stages unlock one after another.</p>
-      </div>
-      <div className="grid gap-2 md:grid-cols-2">
-        {hunts.map((h) => (
-          <Link key={h.id} to={`/hunts/${h.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm">
-            <CoverThumb imageUrl={h.imageUrl} markdown={h.description} />
-            <div className="min-w-0 flex-1">
-              <SubjectBadge subject={h.subject} />
-              <span className="font-semibold">{h.finished ? "🏁 " : ""}{h.title}</span>
-              <div className="text-sm text-muted-foreground">{h.done} of {h.total} stages{h.finished ? " · finished" : ""}</div>
-            </div>
-          </Link>
-        ))}
-      </div>
-      {q.data && hunts.length === 0 && <p className="text-muted-foreground">No scavenger hunts are open right now.</p>}
-    </div>
-  );
-}
 
 function CodeForm({ hunt }: { hunt: Hunt }) {
   const qc = useQueryClient();

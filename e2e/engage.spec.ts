@@ -23,8 +23,7 @@ test("library: teacher adds a book, student marks it read and comments, teacher 
   const s = await ctx.newPage();
   await hideDevOverlay(s);
   await login(s, "student@demo.school");
-  await s.getByRole("link", { name: "More", exact: true }).click();
-  await s.getByRole("link", { name: /Library/ }).click();
+  await s.getByRole("link", { name: "Library", exact: true }).click();
   await s.getByRole("link", { name: /Uncle Tungsten/ }).click();
   await expect(s.getByText("0 students have read this")).toBeVisible();
   await s.getByRole("button", { name: "I've read this" }).click();
@@ -66,7 +65,9 @@ test("scavenger hunt: stages unlock in order, a typed code completes one, the te
   const s = await ctx.newPage();
   await hideDevOverlay(s);
   await login(s, "student@demo.school");
-  await s.goto(`/hunts/${huntId}`);
+  await s.goto("/events");
+  await s.getByRole("link", { name: /Lab trail/ }).click(); // listed with the events
+  await expect(s).toHaveURL(new RegExp(`/hunts/${huntId}$`));
   await expect(s.getByText("Look where the air is pulled away")).toBeVisible();
   await expect(s.getByText("SECRET-CLUE-TWO")).toHaveCount(0); // locked stages show no clue
   await s.getByLabel("Code word or answer").fill("chlorine");

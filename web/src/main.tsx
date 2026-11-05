@@ -14,10 +14,8 @@ import { CheckinLink, Scan } from "@/pages/Scan";
 const exhibitsPage = import("@/pages/Exhibits");
 const Exhibits = lazy(() => exhibitsPage.then((m) => ({ default: m.Exhibits })));
 const ExhibitDetail = lazy(() => exhibitsPage.then((m) => ({ default: m.ExhibitDetail })));
-import { More } from "@/pages/More";
 const Library = lazy(() => import("@/pages/Library").then((m) => ({ default: m.Library })));
 const BookDetail = lazy(() => import("@/pages/Library").then((m) => ({ default: m.BookDetail })));
-const Hunts = lazy(() => import("@/pages/Hunts").then((m) => ({ default: m.Hunts })));
 const HuntDetail = lazy(() => import("@/pages/Hunts").then((m) => ({ default: m.HuntDetail })));
 import Leaderboard from "@/pages/Leaderboard";
 import Me from "@/pages/Me";
@@ -71,10 +69,9 @@ function App() {
         <Route path="scan" element={<Scan />} />
         <Route path="exhibits" element={<Exhibits />} />
         <Route path="exhibits/:slug" element={<ExhibitDetail />} />
-        <Route path="more" element={<More />} />
         <Route path="library" element={<Library />} />
         <Route path="library/:id" element={<BookDetail />} />
-        <Route path="hunts" element={<Hunts />} />
+        <Route path="hunts" element={<Navigate to="/events" replace />} />
         <Route path="hunts/:id" element={<HuntDetail />} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="me" element={<Me />} />

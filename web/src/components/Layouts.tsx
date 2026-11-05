@@ -13,7 +13,7 @@ const NAV: [string, string][] = [
   ["/scan", "Scan"],
   ["/exhibits", "Exhibits"],
   ["/leaderboard", "Board"],
-  ["/more", "More"],
+  ["/library", "Library"],
   ["/me", "Me"],
 ];
 
@@ -21,7 +21,7 @@ const NAV: [string, string][] = [
 export function parentOf(pathname: string): string {
   const p = pathname.replace(/\/+$/, "");
   if (p.startsWith("/admin/exhibitions")) return "/admin/exhibits"; // exhibitions are managed from the Exhibits page
-  if (p === "/hunts" || p === "/library") return "/more";
+  if (p === "/hunts" || /^\/hunts\/\d+$/.test(p)) return "/events"; // a scavenger hunt is listed with the events
   const m = p.match(/^\/admin\/(hunts|library)\/\d+\/(edit|results|signs)$/); // these pages have no page of their own for the item
   if (m) return `/admin/${m[1]}`;
   const up = p.slice(0, p.lastIndexOf("/"));
@@ -32,8 +32,6 @@ const PAGE_NAMES: Record<string, string> = {
   "/": "Home",
   "/events": "Events",
   "/exhibits": "Exhibits",
-  "/more": "More",
-  "/hunts": "Scavenger hunts",
   "/library": "Library",
   "/admin": "the Teacher portal",
   "/admin/events": "Events",

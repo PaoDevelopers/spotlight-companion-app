@@ -58,7 +58,7 @@ export default function Help() {
       <Topic title="Scavenger hunts">
         <ol>
           <li>Press <Link to="/admin/hunts/new" className="underline">New scavenger hunt</Link>. Add the stages in the order students should do them. Each stage has a short name, a clue, and one or more accepted code words or answers (one per line; capital letters don't matter).</li>
-          <li>Leave <b>Open to students</b> unticked while you write it. Tick it when you are ready: students then see it under <b>More → Scavenger hunts</b>.</li>
+          <li>Leave <b>Open to students</b> unticked while you write it. Tick it when you are ready: students then see it at the top of the <b>Events</b> list, marked as a scavenger hunt.</li>
           <li>After saving, press <b>Print station signs</b> and put each QR sign at its station. A student completes a stage by typing the code word or scanning the sign, but only the stage they have reached: later stages stay locked and their clues stay hidden.</li>
           <li><b>Who has done what</b> shows every student's progress, the order they finished in, and the photos they uploaded as evidence (only you and the student can see these). Tick a stage there for a student who has no phone, or untick one that was recorded wrongly.</li>
         </ol>

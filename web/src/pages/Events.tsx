@@ -14,12 +14,14 @@ import { SUBJECTS } from "@/lib/subjects";
 import { kindLabel } from "@/lib/competition";
 import { checkinState } from "@/lib/checkin";
 import { cn } from "@/lib/utils";
-import type { Event } from "@/lib/types";
+import type { Event, HuntView } from "@/lib/types";
 
 export function Events() {
   const [params] = useSearchParams();
   const subject = params.get("subject") ?? "";
   const q = useQuery({ queryKey: ["events", subject], queryFn: () => api.get<Event[]>(`/api/events${subject ? `?subject=${subject}` : ""}`) });
+  const hunts = useQuery({ queryKey: ["hunts"], queryFn: () => api.get<{ hunts: HuntView[] }>("/api/hunts") });
+  const shownHunts = (hunts.data?.hunts ?? []).filter((h) => !subject || h.subject === subject || h.subject === "both");
   return (
     <div>
       <h1 className="mb-3 text-2xl font-bold">Events</h1>
@@ -31,6 +33,16 @@ export function Events() {
         ))}
       </div>
       <div className="grid gap-2 md:grid-cols-2">
+      {shownHunts.map((h) => (
+        <Link key={`hunt${h.id}`} to={`/hunts/${h.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm ring-1 ring-primary/30">
+          <CoverThumb imageUrl={h.imageUrl} markdown={h.description} />
+          <div className="min-w-0 flex-1">
+            <SubjectBadge subject={h.subject} />
+            <span className="font-semibold">{h.finished ? "🏁 " : "🧪 "}{h.title}</span>
+            <div className="text-sm text-muted-foreground">Scavenger hunt · {h.done} of {h.total} stages{h.finished ? " · finished" : ""}</div>
+          </div>
+        </Link>
+      ))}
       {q.data?.map((e) => (
         <Link key={e.id} to={`/events/${e.id}`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm">
           <CoverThumb imageUrl={e.imageUrl} markdown={e.description} />

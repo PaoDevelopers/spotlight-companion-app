@@ -22,7 +22,7 @@ export function parentOf(pathname: string): string {
   const p = pathname.replace(/\/+$/, "");
   if (p.startsWith("/admin/exhibitions")) return "/admin/exhibits"; // exhibitions are managed from the Exhibits page
   if (p === "/hunts" || /^\/hunts\/\d+$/.test(p)) return "/events"; // a scavenger hunt is listed with the events
-  const m = p.match(/^\/admin\/(hunts|library)\/\d+\/(edit|results|signs)$/); // these pages have no page of their own for the item
+  const m = p.match(/^\/admin\/(hunts|library)\/\d+\/(edit|results|signs|sign)$/); // these pages have no page of their own for the item
   if (m) return `/admin/${m[1]}`;
   const up = p.slice(0, p.lastIndexOf("/"));
   return up === "" ? "/" : up;

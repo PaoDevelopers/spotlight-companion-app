@@ -103,7 +103,15 @@ func (s *Server) deleteComment(w http.ResponseWriter, r *http.Request, u app.Use
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) adminBooks(w http.ResponseWriter, r *http.Request, u app.User) { s.books(w, r, u) }
+// adminBooks lists the books with the address of the site, which the QR signs need.
+func (s *Server) adminBooks(w http.ResponseWriter, r *http.Request, u app.User) {
+	list, err := s.app.Books(r.Context(), u.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"books": list, "baseUrl": s.app.Cfg.PublicURL})
+}
 
 func (s *Server) adminSaveBook(create bool) func(http.ResponseWriter, *http.Request, app.User) {
 	return func(w http.ResponseWriter, r *http.Request, u app.User) {

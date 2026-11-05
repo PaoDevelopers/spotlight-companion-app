@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { SubjectBadge } from "@/components/ui/badge";
+import { QrImage } from "@/components/QrImage";
 import { CoverImageField } from "@/components/CoverImageField";
 import { CoverThumb } from "@/components/CoverThumb";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
@@ -12,7 +13,7 @@ import { SUBJECTS } from "@/lib/subjects";
 import type { Book, Subject } from "@/lib/types";
 import { FormError, SaveButton, panel, useDraftStatus } from "./shared";
 
-const useAdminBooks = () => useQuery({ queryKey: ["admin-books"], queryFn: () => api.get<{ books: Book[] }>("/api/admin/books") });
+const useAdminBooks = () => useQuery({ queryKey: ["admin-books"], queryFn: () => api.get<{ books: Book[]; baseUrl: string }>("/api/admin/books") });
 
 export default function AdminLibrary() {
   const q = useAdminBooks();
@@ -21,20 +22,26 @@ export default function AdminLibrary() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Library</h1>
-        <Button asChild><Link to="/admin/library/new">Add a book</Link></Button>
+        <span className="flex gap-2">
+          {books.length > 0 && <Button asChild variant="outline"><Link to="/admin/library/signs">Print all QR signs</Link></Button>}
+          <Button asChild><Link to="/admin/library/new">Add a book</Link></Button>
+        </span>
       </div>
       <p className="text-sm text-muted-foreground">Recommended books for Spotlight Month. Students mark the ones they have read and leave comments; you can delete any comment from the book's page.</p>
       {q.data && books.length === 0 && <p className="text-muted-foreground">No books yet. Add the first one.</p>}
       <div className="grid gap-2 lg:grid-cols-2">
         {books.map((b) => (
-          <Link key={b.id} to={`/admin/library/${b.id}/edit`} className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-sm hover:bg-accent">
-            <CoverThumb imageUrl={b.imageUrl} markdown={b.bodyMd} className="size-12" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate"><SubjectBadge subject={b.subject} /><b>{b.title}</b></div>
-              <div className="truncate text-sm text-muted-foreground">{b.author}</div>
-            </div>
-            <div className="text-right text-sm text-muted-foreground">{b.reads} read<br />{b.comments} comments</div>
-          </Link>
+          <div key={b.id} className="rounded-lg bg-card p-3 shadow-sm">
+            <Link to={`/admin/library/${b.id}/edit`} className="flex items-center gap-3 hover:underline">
+              <CoverThumb imageUrl={b.imageUrl} markdown={b.bodyMd} className="size-12" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate"><SubjectBadge subject={b.subject} /><b>{b.title}</b></div>
+                <div className="truncate text-sm text-muted-foreground">{b.author}</div>
+              </div>
+              <div className="text-right text-sm text-muted-foreground">{b.reads} read<br />{b.comments} comments</div>
+            </Link>
+            <div className="mt-2 text-sm"><Link to={`/admin/library/${b.id}/sign`} className="underline">Print QR sign</Link></div>
+          </div>
         ))}
       </div>
     </div>
@@ -87,7 +94,12 @@ export function AdminBookEdit() {
     <form onSubmit={(e: FormEvent) => { e.preventDefault(); sent.current = d; save.mutate(); }} className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">{id ? "Edit book" : "Add a book"}</h1>
-        {id && <Link to={`/library/${id}`} className="text-sm underline">See it as a student</Link>}
+        {id && (
+          <span className="flex gap-3 text-sm">
+            <Link to={`/admin/library/${id}/sign`} className="underline">Print QR sign</Link>
+            <Link to={`/library/${id}`} className="underline">See it as a student</Link>
+          </span>
+        )}
       </div>
       <section className={`${panel} space-y-3`}>
         <label className="block text-sm"><span className="mb-1 block font-medium">Title</span>
@@ -126,5 +138,51 @@ export function AdminBookEdit() {
         <SaveButton pending={save.isPending} dirty={id ? status.dirty : undefined} saved={status.saved}>{id ? "Save changes" : "Add book"}</SaveButton>
       </div>
     </form>
+  );
+}
+
+function BookSign({ b, base }: { b: Book; base: string }) {
+  return (
+    <div className="mx-auto flex max-w-xl break-inside-avoid flex-col items-center gap-3 rounded-lg border-2 border-foreground bg-white p-8 text-center text-black print:border-0">
+      <p className="text-lg font-semibold uppercase tracking-wide">Spotlight Month Library</p>
+      <h1 className="text-4xl font-bold">{b.title}</h1>
+      {b.author && <p className="text-xl">by {b.author}</p>}
+      <QrImage text={`${base}/library/${b.id}`} size={300} />
+      <p className="text-2xl font-semibold">Scan to read about this book, say you've read it, and leave a comment</p>
+      <p className="text-base">Spotlight Month app: tap “Scan”, or use your phone's camera.</p>
+    </div>
+  );
+}
+
+/** A sign for one book, to print and put on the shelf or the display. The QR code is just the book's page address, so it never needs changing. */
+export function AdminBookSign() {
+  const { id } = useParams();
+  const q = useAdminBooks();
+  if (!q.data) return null;
+  const b = q.data.books.find((x) => String(x.id) === id);
+  if (!b) return <p>Book not found.</p>;
+  return (
+    <div className="space-y-4">
+      <div className="no-print flex gap-2">
+        <Button onClick={() => window.print()}>Print</Button>
+        <Button asChild variant="outline"><Link to={`/admin/library/${b.id}/edit`}>Back</Link></Button>
+      </div>
+      <BookSign b={b} base={q.data.baseUrl} />
+    </div>
+  );
+}
+
+/** Every book's sign, one after another, for printing in one go. */
+export function AdminBookSigns() {
+  const q = useAdminBooks();
+  if (!q.data) return null;
+  return (
+    <div className="space-y-6">
+      <div className="no-print flex items-center gap-3">
+        <h1 className="text-2xl font-bold">QR signs for all books</h1>
+        <Button onClick={() => window.print()}>Print</Button>
+      </div>
+      {q.data.books.map((b) => <div key={b.id} className="print:break-after-page"><BookSign b={b} base={q.data.baseUrl} /></div>)}
+    </div>
   );
 }

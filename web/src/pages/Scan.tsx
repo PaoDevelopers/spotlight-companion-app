@@ -38,12 +38,16 @@ export function Scan() {
   const scan = useScan();
   const [manual, setManual] = useState("");
   const send = useCallback(
-    (code: string) =>
+    (code: string) => {
+      // a book's QR code is just a link to its page
+      const book = code.trim().match(/^https?:\/\/[^/]+\/library\/(\d+)\/?$/);
+      if (book) return navigate(`/library/${book[1]}`);
       scan.mutate(code, {
         onSuccess: (r) => {
           if (r.ok && r.href) navigate(r.href);
         },
-      }),
+      });
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [scan.mutate, navigate],
   );

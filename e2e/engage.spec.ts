@@ -19,10 +19,28 @@ test("library: teacher adds a book, student marks it read and comments, teacher 
   await expect(page).toHaveURL(/\/admin\/library\/\d+\/edit/);
   await expect(page.getByRole("button", { name: "✓ Saved" })).toBeVisible();
 
+  // the teacher prints a QR sign for the book: its code is the address of the book's page
+  const bookId = page.url().match(/library\/(\d+)/)![1];
+  await page.getByRole("link", { name: "Print QR sign" }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/library/${bookId}/sign$`));
+  await expect(page.getByRole("heading", { name: "Uncle Tungsten" })).toBeVisible();
+  await expect(page.getByAltText("QR code")).toBeVisible();
+  await page.goto("/admin/library/signs");
+  await expect(page.getByRole("heading", { name: "Uncle Tungsten" })).toBeVisible();
+  await page.goto(`/admin/library/${bookId}/sign`);
+  await page.getByRole("link", { name: "Back", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/library/${bookId}/edit$`));
+
   const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
   const s = await ctx.newPage();
   await hideDevOverlay(s);
   await login(s, "student@demo.school");
+  // scanning a book's QR code in the app opens the book
+  await s.goto("/scan");
+  await s.getByPlaceholder("Or paste a code").fill(`http://localhost:3100/library/${bookId}`);
+  await s.getByRole("button", { name: "Go" }).click();
+  await expect(s).toHaveURL(new RegExp(`/library/${bookId}$`));
+  await s.goto("/");
   await s.getByRole("link", { name: "Library", exact: true }).click();
   await s.getByRole("link", { name: /Uncle Tungsten/ }).click();
   await expect(s.getByText("0 students have read this")).toBeVisible();

@@ -35,6 +35,8 @@ const AdminExhibitEdit = lazy(() => import("@/pages/admin/ExhibitEditor").then((
 const AdminCompetitions = lazy(() => import("@/pages/admin/Competitions"));
 const AdminAwards = lazy(() => import("@/pages/admin/Awards"));
 const AdminLibrary = lazy(() => import("@/pages/admin/Library"));
+const AdminBookSign = lazy(() => import("@/pages/admin/Library").then((m) => ({ default: m.AdminBookSign })));
+const AdminBookSigns = lazy(() => import("@/pages/admin/Library").then((m) => ({ default: m.AdminBookSigns })));
 const AdminBookEdit = lazy(() => import("@/pages/admin/Library").then((m) => ({ default: m.AdminBookEdit })));
 const adminHunts = () => import("@/pages/admin/Hunts");
 const AdminHunts = lazy(() => adminHunts());
@@ -94,6 +96,8 @@ function App() {
         <Route path="exhibitions/:id/edit" element={<AdminExhibitionEdit />} />
         <Route path="library" element={<AdminLibrary />} />
         <Route path="library/new" element={<AdminBookEdit />} />
+        <Route path="library/signs" element={<AdminBookSigns />} />
+        <Route path="library/:id/sign" element={<AdminBookSign />} />
         <Route path="library/:id/edit" element={<AdminBookEdit />} />
         <Route path="hunts" element={<AdminHunts />} />
         <Route path="hunts/new" element={<AdminHuntEdit />} />

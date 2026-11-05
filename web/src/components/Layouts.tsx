@@ -8,12 +8,12 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
 const NAV: [string, string][] = [
-  ["/", "Home"],
-  ["/events", "Events"],
   ["/scan", "Scan"],
+  ["/events", "Events"],
   ["/exhibits", "Exhibits"],
-  ["/leaderboard", "Board"],
+  ["/", "Home"],
   ["/library", "Library"],
+  ["/leaderboard", "Board"],
   ["/me", "Me"],
 ];
 

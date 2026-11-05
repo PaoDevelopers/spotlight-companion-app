@@ -94,6 +94,8 @@ func (s *Server) appError(w http.ResponseWriter, r *http.Request, err error) {
 		fail(w, http.StatusConflict, "closed", err.Error())
 	case errors.Is(err, app.ErrExists):
 		fail(w, http.StatusConflict, "exists", "an exhibit with that web address already exists")
+	case errors.Is(err, app.ErrTooMany):
+		fail(w, http.StatusTooManyRequests, "too_many", err.Error())
 	case errors.Is(err, app.ErrNoSignup):
 		fail(w, http.StatusConflict, "signup_closed", err.Error())
 	case errors.Is(err, app.ErrFull):

@@ -29,16 +29,17 @@ const (
 )
 
 type Server struct {
-	app    *app.App
-	log    *slog.Logger
-	ui     fs.FS
-	logins *limiter
+	app     *app.App
+	log     *slog.Logger
+	ui      fs.FS
+	logins  *limiter
+	guesses *limiter // wrong hunt answers
 }
 
 type ctxKey struct{}
 
 func New(a *app.App, log *slog.Logger, ui fs.FS) http.Handler {
-	s := &Server{app: a, log: log, ui: ui, logins: newLimiter(5, 10*time.Minute)}
+	s := &Server{app: a, log: log, ui: ui, logins: newLimiter(5, 10*time.Minute), guesses: newLimiter(8, time.Minute)}
 	mux := http.NewServeMux()
 	s.routes(mux)
 	return s.recoverer(s.securityHeaders(s.sameOrigin(mux)))
@@ -71,6 +72,21 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/exhibits/{slug}", s.user(s.exhibit))
 	mux.HandleFunc("POST /api/scan", s.user(s.scan))
 	mux.HandleFunc("GET /api/leaderboard", s.user(s.leaderboard))
+	mux.HandleFunc("POST /api/uploads", s.user(s.uploadStudentImage))
+	mux.HandleFunc("GET /api/books", s.user(s.books))
+	mux.HandleFunc("GET /api/books/{id}", s.user(s.book))
+	mux.HandleFunc("PUT /api/books/{id}/read", s.user(s.setRead(true)))
+	mux.HandleFunc("DELETE /api/books/{id}/read", s.user(s.setRead(false)))
+	mux.HandleFunc("POST /api/books/{id}/comments", s.user(s.addComment))
+	mux.HandleFunc("DELETE /api/comments/{id}", s.user(s.deleteComment))
+	mux.HandleFunc("GET /api/events/{id}/works", s.user(s.works))
+	mux.HandleFunc("POST /api/events/{id}/works", s.user(s.addWork))
+	mux.HandleFunc("DELETE /api/works/{id}", s.user(s.deleteWork))
+	mux.HandleFunc("GET /api/hunts", s.user(s.hunts))
+	mux.HandleFunc("GET /api/hunts/{id}", s.user(s.hunt))
+	mux.HandleFunc("POST /api/hunts/{id}/code", s.user(s.submitCode))
+	mux.HandleFunc("POST /api/hunt-stages/{id}/photos", s.user(s.addHuntPhoto))
+	mux.HandleFunc("DELETE /api/hunt-photos/{id}", s.user(s.deleteHuntPhoto))
 
 	// teachers and admins
 	mux.HandleFunc("GET /api/admin/stats", s.staff(s.adminStats))
@@ -105,6 +121,17 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/admin/awards/{id}", s.staff(s.adminUpdateAward))
 	mux.HandleFunc("DELETE /api/admin/awards/{id}", s.staff(s.adminDeleteAward))
 	mux.HandleFunc("POST /api/admin/awards/publish", s.staff(s.adminPublishAwards))
+	mux.HandleFunc("GET /api/admin/books", s.staff(s.adminBooks))
+	mux.HandleFunc("POST /api/admin/books", s.staff(s.adminSaveBook(true)))
+	mux.HandleFunc("PUT /api/admin/books/{id}", s.staff(s.adminSaveBook(false)))
+	mux.HandleFunc("DELETE /api/admin/books/{id}", s.staff(s.adminDeleteBook))
+	mux.HandleFunc("GET /api/admin/hunts", s.staff(s.adminHunts))
+	mux.HandleFunc("POST /api/admin/hunts", s.staff(s.adminSaveHunt(true)))
+	mux.HandleFunc("GET /api/admin/hunts/{id}", s.staff(s.adminHunt))
+	mux.HandleFunc("PUT /api/admin/hunts/{id}", s.staff(s.adminSaveHunt(false)))
+	mux.HandleFunc("DELETE /api/admin/hunts/{id}", s.staff(s.adminDeleteHunt))
+	mux.HandleFunc("GET /api/admin/hunts/{id}/results", s.staff(s.adminHuntResults))
+	mux.HandleFunc("POST /api/admin/hunts/{id}/mark", s.staff(s.adminMarkStage))
 	mux.HandleFunc("POST /api/admin/roster", s.staff(s.adminRoster))
 	mux.HandleFunc("POST /api/admin/users/role", s.admin(s.adminSetRole))
 	mux.HandleFunc("POST /api/admin/students/import", s.admin(s.adminImportStudents))

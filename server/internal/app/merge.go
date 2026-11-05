@@ -18,6 +18,8 @@ var mergeUnique = []struct{ table, key string }{
 	{"competition_entries", "competition_id"},
 	{"exhibit_visits", "exhibit_id"},
 	{"student_awards", "title"},
+	{"book_reads", "book_id"},
+	{"hunt_progress", "stage_id"},
 }
 
 // columns that only record who did something, with no uniqueness to worry about
@@ -25,6 +27,9 @@ var mergeActor = []struct{ table, col string }{
 	{"audit_log", "actor_id"},
 	{"images", "uploaded_by"},
 	{"student_awards", "created_by"},
+	{"book_comments", "user_id"},
+	{"event_works", "user_id"},
+	{"hunt_photos", "user_id"},
 }
 
 // MergeReport says what a merge moved. It holds counts only.

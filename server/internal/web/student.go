@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/PaoDevelopers/spotlight-companion-app/server/internal/app"
@@ -218,6 +219,20 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request, u app.User) {
 		writeJSON(w, http.StatusOK, scanResponse{OK: true, Message: "Exhibit visit recorded", Href: "/exhibits/" + slug})
 		return
 	}
+	if strings.HasPrefix(code, "stage.") {
+		out, err := s.app.ScanStage(ctx, u, code)
+		switch {
+		case errors.Is(err, app.ErrBadToken), errors.Is(err, app.ErrNotFound):
+			writeJSON(w, http.StatusOK, scanResponse{Message: "That scavenger hunt code isn't valid."})
+		case errors.Is(err, app.ErrClosed):
+			writeJSON(w, http.StatusOK, scanResponse{Message: "This scavenger hunt isn't open."})
+		case err != nil:
+			s.serverError(w, r, err)
+		default:
+			writeJSON(w, http.StatusOK, scanResponse{OK: out.Result == "done" || out.Result == "already", Message: out.Message, Href: "/hunts/" + strconv.FormatInt(out.HuntID, 10)})
+		}
+		return
+	}
 	res, err := s.app.CheckInStudent(ctx, u.ID, code)
 	switch {
 	case err == nil && res.Duplicate:
@@ -289,14 +304,18 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request, u app.User) {
 	if !ok {
 		return
 	}
-	ct, data, err := s.app.Image(r.Context(), id)
+	f, err := s.app.Image(r.Context(), id)
 	if err != nil {
 		s.appError(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Type", ct)
+	if !f.MayView(u) {
+		fail(w, http.StatusNotFound, "not_found", "not found") // not "forbidden": do not confirm that the picture exists
+		return
+	}
+	w.Header().Set("Content-Type", f.Type)
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
-	w.Write(data)
+	w.Write(f.Data)
 }
 
 // closedResponse explains why check-in is closed: not yet open (and when it opens), or the event is over.

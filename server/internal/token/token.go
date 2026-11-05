@@ -80,6 +80,7 @@ type Kind string
 const (
 	KindEvent   Kind = "event"
 	KindExhibit Kind = "exhibit"
+	KindStage   Kind = "stage" // one station of a scavenger hunt
 )
 
 // MakeTag is the permanent token for a physical NFC tag or printed exhibit QR code.
@@ -96,7 +97,7 @@ func VerifyTag(secret, token string) (Kind, int64, bool) {
 	}
 	kind := Kind(parts[0])
 	id, ok := canonicalInt(parts[1])
-	if (kind != KindEvent && kind != KindExhibit) || !ok {
+	if (kind != KindEvent && kind != KindExhibit && kind != KindStage) || !ok {
 		return "", 0, false
 	}
 	if !equal(MakeTag(secret, kind, id), token) {

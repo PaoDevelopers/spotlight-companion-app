@@ -16,8 +16,8 @@ export function WorksGallery({ eventId, checkedIn }: { eventId: number; checkedI
   if (!q.data || (works.length === 0 && !checkedIn)) return null;
   return (
     <section aria-label="Shared works" className="space-y-3">
-      <h2 className="text-lg font-semibold">Works shared from this event</h2>
-      {works.length === 0 && <p className="text-sm text-muted-foreground">Nobody has shared anything yet. Be the first!</p>}
+      <h2 className="mt-2 text-lg font-semibold">Works shared from this event</h2>
+      {works.length === 0 && <p className="rounded-lg bg-card p-3 text-sm text-muted-foreground shadow-sm">Nobody has shared anything yet. Be the first!</p>}
       <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {works.map((w) => (
           <li key={w.id} className="overflow-hidden rounded-lg bg-card text-sm shadow-sm">

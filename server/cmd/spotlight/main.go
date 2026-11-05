@@ -8,7 +8,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -74,6 +77,8 @@ func run(cmd, cfgPath string, log *slog.Logger) error {
 		return nil
 	case "import-students":
 		return importStudents(ctx, a, cfg.StudentDomain, flag.Args()[1:])
+	case "import-books":
+		return importBooks(ctx, a, flag.Args()[1:])
 	case "seed-demo":
 		codes, err := a.SeedDemo(ctx)
 		if err != nil {
@@ -171,5 +176,60 @@ func importStudents(ctx context.Context, a *app.App, domain string, args []strin
 	if rep.Skipped > 0 {
 		fmt.Println("skipped rows have no usable id or name; check the file")
 	}
+	return nil
+}
+
+// importBooks loads a prepared list of library books: a JSON file with title, author, subject, summary, bodyMd and an optional
+// cover file name, and the folder the covers are in (by default the folder of the JSON file).
+func importBooks(ctx context.Context, a *app.App, args []string) error {
+	dry, rest := false, []string{}
+	for _, x := range args {
+		if x == "--dry-run" || x == "-n" {
+			dry = true
+		} else {
+			rest = append(rest, x)
+		}
+	}
+	if len(rest) < 1 || len(rest) > 2 {
+		return errors.New("usage: spotlight import-books [--dry-run] BOOKS.json [COVERS_FOLDER]")
+	}
+	raw, err := os.ReadFile(rest[0])
+	if err != nil {
+		return err
+	}
+	var items []struct {
+		Title, Author, Subject, Summary, BodyMD, Cover string
+		ImageURL                                       string
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if err := dec.Decode(&items); err != nil {
+		return fmt.Errorf("could not read %s: %w", rest[0], err)
+	}
+	dir := filepath.Dir(rest[0])
+	if len(rest) == 2 {
+		dir = rest[1]
+	}
+	list := make([]app.BookImport, 0, len(items))
+	for _, it := range items {
+		b := app.BookImport{BookInput: app.BookInput{Title: it.Title, Author: it.Author, Subject: it.Subject, Summary: it.Summary, BodyMD: it.BodyMD, ImageURL: it.ImageURL}}
+		if it.Cover != "" {
+			data, err := os.ReadFile(filepath.Join(dir, filepath.Base(it.Cover)))
+			if err != nil {
+				fmt.Printf("no cover for %q (%v); adding it without one\n", it.Title, err)
+			} else {
+				b.Cover = data
+			}
+		}
+		list = append(list, b)
+	}
+	added, skipped, err := a.ImportBooks(ctx, list, dry)
+	if err != nil {
+		return err
+	}
+	verb := "added"
+	if dry {
+		verb = "would add (dry run, nothing changed)"
+	}
+	fmt.Printf("%s %d books; %d were already in the library\n", verb, added, skipped)
 	return nil
 }

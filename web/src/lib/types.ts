@@ -153,3 +153,109 @@ export interface Board {
   rows: BoardRow[];
   groups: BoardGroup[];
 }
+
+// ---- library, scavenger hunts, shared works ----
+export interface Book {
+  id: number;
+  title: string;
+  author: string;
+  subject: Subject;
+  summary: string;
+  bodyMd: string;
+  imageUrl: string | null;
+  reads: number;
+  comments: number;
+  iRead: boolean;
+}
+export interface BookComment {
+  id: number;
+  userId: number;
+  name: string;
+  className: string;
+  body: string;
+  at: string;
+}
+export interface Work {
+  id: number;
+  userId: number;
+  name: string;
+  className: string;
+  imageUrl: string;
+  caption: string;
+  at: string;
+}
+export interface HuntPhoto {
+  id: number;
+  imageUrl: string;
+  caption: string;
+  at: string;
+}
+export interface HuntStage {
+  id: number;
+  position: number;
+  title: string;
+  state: "done" | "current" | "locked";
+  clue?: string;
+  doneAt: string | null;
+  method: "code" | "qr" | "teacher" | null;
+  photos: HuntPhoto[];
+}
+export interface HuntRank {
+  rank: number;
+  label: string;
+  at: string;
+  me: boolean;
+}
+export interface Hunt {
+  id: number;
+  title: string;
+  subject: Subject;
+  description: string;
+  imageUrl: string | null;
+  published: boolean;
+  stages: number;
+}
+export interface HuntView extends Hunt {
+  stageList: HuntStage[];
+  done: number;
+  total: number;
+  finished: boolean;
+  finishedAt: string | null;
+  rank: number | null;
+  board: HuntRank[];
+}
+export interface StageOutcome {
+  result: "done" | "already" | "locked" | "wrong";
+  message: string;
+  done: number;
+  total: number;
+  finished: boolean;
+}
+export interface HuntStageAdmin {
+  id: number;
+  position: number;
+  title: string;
+  clue: string;
+  answers: string[];
+  token: string;
+  url: string;
+}
+export interface HuntResultStage {
+  stageId: number;
+  position: number;
+  title: string;
+  at: string | null;
+  method: string | null;
+  photos: HuntPhoto[];
+}
+export interface HuntResultRow {
+  userId: number;
+  name: string;
+  className: string;
+  done: number;
+  total: number;
+  rank: number | null;
+  finished: boolean;
+  finishedAt: string | null;
+  stages: HuntResultStage[];
+}

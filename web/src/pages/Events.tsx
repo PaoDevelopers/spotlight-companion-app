@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { WorksGallery } from "@/components/WorksGallery";
 import { Input } from "@/components/ui/input";
 import { SubjectBadge } from "@/components/ui/badge";
 import { Prose } from "@/components/Prose";
@@ -84,6 +85,7 @@ export function EventDetail() {
           <RegisterForm key={c.id} id={c.id} kind={c.kind} houses={c.houses ?? []} eventId={e.id} />
         ),
       )}
+      <WorksGallery eventId={e.id} checkedIn={checkedIn} />
     </article>
   );
 }

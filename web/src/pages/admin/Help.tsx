@@ -55,6 +55,30 @@ export default function Help() {
         </ul>
       </Topic>
 
+      <Topic title="Scavenger hunts">
+        <ol>
+          <li>Press <Link to="/admin/hunts/new" className="underline">New scavenger hunt</Link>. Add the stages in the order students should do them. Each stage has a short name, a clue, and one or more accepted code words or answers (one per line; capital letters don't matter).</li>
+          <li>Leave <b>Open to students</b> unticked while you write it. Tick it when you are ready: students then see it under <b>More → Scavenger hunts</b>.</li>
+          <li>After saving, press <b>Print station signs</b> and put each QR sign at its station. A student completes a stage by typing the code word or scanning the sign, but only the stage they have reached: later stages stay locked and their clues stay hidden.</li>
+          <li><b>Who has done what</b> shows every student's progress, the order they finished in, and the photos they uploaded as evidence (only you and the student can see these). Tick a stage there for a student who has no phone, or untick one that was recorded wrongly.</li>
+        </ol>
+      </Topic>
+
+      <Topic title="Library">
+        <ul>
+          <li>Press <Link to="/admin/library/new" className="underline">Add a book</Link> to recommend a book: title, author, a one-line summary and an introduction.</li>
+          <li>Students press the red <b>I've read this</b> button, so everyone can see how many have read it, and leave comments with their real name and class.</li>
+          <li>To remove an inappropriate comment, open the book as a student (the <b>See it as a student</b> link) and press <b>Delete</b> under the comment.</li>
+        </ul>
+      </Topic>
+
+      <Topic title="Pictures students share from an event">
+        <ul>
+          <li>Once a student is checked in to an event, its page lets them share pictures of what they made (a painting, a taken-apart computer). Everyone signed in can see them, with the student's name.</li>
+          <li>To remove a picture, open the event page as a student and press <b>Remove</b> under it. You can remove any picture.</li>
+        </ul>
+      </Topic>
+
       <Topic title="Competitions and results">
         <ul>
           <li>A competition belongs to an event: tick <b>This event is a competition</b> when you edit the event.</li>

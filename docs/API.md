@@ -196,6 +196,25 @@ Every change is written to the audit log. Only students can receive awards.
   once and never stored in readable form: show them immediately with a print button. Not available in `entra` mode (409).
 - `POST /api/admin/users/role` `{email, role}` (admin only) → 204. `role` is `student`, `teacher` or `admin`.
 
+## Library, scavenger hunts and shared works
+
+Students (any signed-in user):
+- `GET /api/books` → `{"books":[Book]}`; `GET /api/books/{id}` → `{"book":Book,"comments":[{id,userId,name,className,body,at}]}`. `Book` = `{id,title,author,subject,summary,bodyMd,imageUrl|null,reads,comments,iRead}`.
+- `PUT|DELETE /api/books/{id}/read` → `{"book"}`: mark / unmark "I've read this" (one per student; repeating is harmless).
+- `POST /api/books/{id}/comments` `{"body"}` → 201 `{"comment"}`. Plain text, 1–1000 characters, 10 an hour. Real names are shown. `DELETE /api/comments/{id}` → 204: the writer or any teacher (a teacher's deletion is audited).
+- `POST /api/uploads?kind=work|hunt` raw picture bytes → 201 `{"id","url"}`. For a student's own pictures; 30 an hour, 300 in all. The picture must then be attached with the calls below (it can be attached once).
+- `GET /api/events/{id}/works` → `{"works":[{id,userId,name,className,imageUrl,caption,at}],"canPost"}` (`canPost` = checked in). `POST /api/events/{id}/works` `{imageId,caption}` → 201; 403 unless checked in; 6 per student per event. `DELETE /api/works/{id}` → 204 (owner or teacher).
+- `GET /api/hunts` → `{"hunts":[HuntView]}` (published only, with the student's own progress); `GET /api/hunts/{id}` → `{"hunt":HuntView}`. `HuntView` has `stageList` (`state` is `done`, `current` or `locked`; `clue` is sent only for done/current stages), `done`, `total`, `finished`, `rank` and `board` (finishers by finish time; a name is shown only for students who chose to show their name, and the viewer always sees their own line). Staff may open a draft.
+- `POST /api/hunts/{id}/code` `{"code"}` → `{result: done|already|locked|wrong, message, done, total, finished}`. The server finds the stage by itself. Stages complete strictly in order. Eight wrong answers in a minute → 429.
+- Scanning a station QR (`POST /api/scan`, code `stage.<id>.<sig>`) completes that stage the same way.
+- `POST /api/hunt-stages/{id}/photos` `{imageId,caption}` → 201 (stage must be unlocked; 5 per stage). `DELETE /api/hunt-photos/{id}` → 204 (owner or teacher). Hunt pictures are served only to their owner and to teachers.
+
+Teachers:
+- `GET|POST /api/admin/books`, `PUT|DELETE /api/admin/books/{id}`; body `{title,author,subject,summary,bodyMd,imageUrl}`.
+- `GET|POST /api/admin/hunts`, `GET|PUT|DELETE /api/admin/hunts/{id}`; body `{title,subject,description,imageUrl,published,stages:[{id|null,title,clue,answers:[...]}]}`. A stage that keeps its `id` keeps its progress and photos; one left out is deleted. Answers include `token`/`url` per stage (the permanent QR for the station).
+- `GET /api/admin/hunts/{id}/results` → `{"hunt","results":[{userId,name,className,done,total,rank,finished,finishedAt,stages:[{stageId,position,title,at,method,photos}]}]}`.
+- `POST /api/admin/hunts/{id}/mark` `{userId,stageId,done}` → 204: record or undo a stage by hand (audited).
+
 ## Operations
 
 - `GET /healthz` → `ok` while the process is up. `GET /readyz` → `ready` only if the database answers.

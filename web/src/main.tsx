@@ -14,6 +14,11 @@ import { CheckinLink, Scan } from "@/pages/Scan";
 const exhibitsPage = import("@/pages/Exhibits");
 const Exhibits = lazy(() => exhibitsPage.then((m) => ({ default: m.Exhibits })));
 const ExhibitDetail = lazy(() => exhibitsPage.then((m) => ({ default: m.ExhibitDetail })));
+import { More } from "@/pages/More";
+const Library = lazy(() => import("@/pages/Library").then((m) => ({ default: m.Library })));
+const BookDetail = lazy(() => import("@/pages/Library").then((m) => ({ default: m.BookDetail })));
+const Hunts = lazy(() => import("@/pages/Hunts").then((m) => ({ default: m.Hunts })));
+const HuntDetail = lazy(() => import("@/pages/Hunts").then((m) => ({ default: m.HuntDetail })));
 import Leaderboard from "@/pages/Leaderboard";
 import Me from "@/pages/Me";
 const Dashboard = lazy(() => loadDashboard());
@@ -31,6 +36,13 @@ const AdminExhibitionEdit = lazy(() => import("@/pages/admin/ExhibitionEditor").
 const AdminExhibitEdit = lazy(() => import("@/pages/admin/ExhibitEditor").then((m) => ({ default: m.AdminExhibitEdit })));
 const AdminCompetitions = lazy(() => import("@/pages/admin/Competitions"));
 const AdminAwards = lazy(() => import("@/pages/admin/Awards"));
+const AdminLibrary = lazy(() => import("@/pages/admin/Library"));
+const AdminBookEdit = lazy(() => import("@/pages/admin/Library").then((m) => ({ default: m.AdminBookEdit })));
+const adminHunts = () => import("@/pages/admin/Hunts");
+const AdminHunts = lazy(() => adminHunts());
+const AdminHuntEdit = lazy(() => adminHunts().then((m) => ({ default: m.AdminHuntEdit })));
+const AdminHuntSigns = lazy(() => adminHunts().then((m) => ({ default: m.AdminHuntSigns })));
+const AdminHuntResults = lazy(() => adminHunts().then((m) => ({ default: m.AdminHuntResults })));
 const Help = lazy(() => import("@/pages/admin/Help"));
 const Roster = lazy(() => import("@/pages/admin/Roster"));
 
@@ -59,6 +71,11 @@ function App() {
         <Route path="scan" element={<Scan />} />
         <Route path="exhibits" element={<Exhibits />} />
         <Route path="exhibits/:slug" element={<ExhibitDetail />} />
+        <Route path="more" element={<More />} />
+        <Route path="library" element={<Library />} />
+        <Route path="library/:id" element={<BookDetail />} />
+        <Route path="hunts" element={<Hunts />} />
+        <Route path="hunts/:id" element={<HuntDetail />} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="me" element={<Me />} />
       </Route>
@@ -78,6 +95,14 @@ function App() {
         <Route path="exhibits/:id/sign" element={<AdminExhibitSign />} />
         <Route path="exhibitions/new" element={<AdminExhibitionEdit />} />
         <Route path="exhibitions/:id/edit" element={<AdminExhibitionEdit />} />
+        <Route path="library" element={<AdminLibrary />} />
+        <Route path="library/new" element={<AdminBookEdit />} />
+        <Route path="library/:id/edit" element={<AdminBookEdit />} />
+        <Route path="hunts" element={<AdminHunts />} />
+        <Route path="hunts/new" element={<AdminHuntEdit />} />
+        <Route path="hunts/:id/edit" element={<AdminHuntEdit />} />
+        <Route path="hunts/:id/signs" element={<AdminHuntSigns />} />
+        <Route path="hunts/:id/results" element={<AdminHuntResults />} />
         <Route path="competitions" element={<AdminCompetitions />} />
         <Route path="awards" element={<AdminAwards />} />
         <Route path="roster" element={<Roster />} />

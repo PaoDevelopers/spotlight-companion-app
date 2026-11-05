@@ -13,6 +13,7 @@ const NAV: [string, string][] = [
   ["/scan", "Scan"],
   ["/exhibits", "Exhibits"],
   ["/leaderboard", "Board"],
+  ["/more", "More"],
   ["/me", "Me"],
 ];
 
@@ -20,6 +21,9 @@ const NAV: [string, string][] = [
 export function parentOf(pathname: string): string {
   const p = pathname.replace(/\/+$/, "");
   if (p.startsWith("/admin/exhibitions")) return "/admin/exhibits"; // exhibitions are managed from the Exhibits page
+  if (p === "/hunts" || p === "/library") return "/more";
+  const m = p.match(/^\/admin\/(hunts|library)\/\d+\/(edit|results|signs)$/); // these pages have no page of their own for the item
+  if (m) return `/admin/${m[1]}`;
   const up = p.slice(0, p.lastIndexOf("/"));
   return up === "" ? "/" : up;
 }
@@ -28,9 +32,14 @@ const PAGE_NAMES: Record<string, string> = {
   "/": "Home",
   "/events": "Events",
   "/exhibits": "Exhibits",
+  "/more": "More",
+  "/hunts": "Scavenger hunts",
+  "/library": "Library",
   "/admin": "the Teacher portal",
   "/admin/events": "Events",
   "/admin/exhibits": "Exhibits",
+  "/admin/hunts": "Scavenger hunts",
+  "/admin/library": "Library",
 };
 const pageName = (path: string) =>
   PAGE_NAMES[path] ?? (/^\/(admin\/)?events\/\d+$/.test(path) ? "the event" : /^\/(admin\/)?exhibits\/[^/]+$/.test(path) ? "the exhibit" : "the previous page");
@@ -101,7 +110,7 @@ export function StudentLayout() {
         <ul className="mx-auto flex max-w-2xl justify-around md:max-w-3xl lg:max-w-4xl">
           {NAV.map(([to, label]) => (
             <li key={to}>
-              <NavLink to={to} end={to === "/"} className={({ isActive }) => cn("block px-3 py-4 text-sm", isActive && "font-semibold underline")}>
+              <NavLink to={to} end={to === "/"} className={({ isActive }) => cn("block px-2 py-4 text-sm md:px-3", isActive && "font-semibold underline")}>
                 {label}
               </NavLink>
             </li>
@@ -116,6 +125,8 @@ export function StudentLayout() {
 const ADMIN_NAV: [string, string][] = [
   ["/admin/events", "Events"],
   ["/admin/exhibits", "Exhibits"],
+  ["/admin/hunts", "Scavenger hunts"],
+  ["/admin/library", "Library"],
   ["/admin/competitions", "Results"],
   ["/admin/awards", "Awards"],
   ["/admin/roster", "Login codes"],

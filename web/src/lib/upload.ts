@@ -40,3 +40,12 @@ export async function uploadImage(file: File): Promise<string> {
   if (!res.ok) throw new ApiError(res.status, data.code ?? "error", data.error ?? "Could not upload the picture. Please try again.");
   return data.url as string;
 }
+
+/** Uploads a picture a student shares (a work on an event, or evidence for a hunt stage) and returns its id. */
+export async function uploadStudentImage(file: File, kind: "work" | "hunt"): Promise<number> {
+  const body = await prepare(file);
+  const res = await fetch(`/api/uploads?kind=${kind}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body, credentials: "same-origin" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, data.code ?? "error", data.error ?? "Could not upload the picture. Please try again.");
+  return data.id as number;
+}

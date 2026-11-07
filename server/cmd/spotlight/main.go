@@ -79,6 +79,8 @@ func run(cmd, cfgPath string, log *slog.Logger) error {
 		return importStudents(ctx, a, cfg.StudentDomain, flag.Args()[1:])
 	case "import-books":
 		return importBooks(ctx, a, flag.Args()[1:])
+	case "import-events":
+		return importEvents(ctx, a, flag.Args()[1:])
 	case "seed-demo":
 		codes, err := a.SeedDemo(ctx)
 		if err != nil {
@@ -231,5 +233,49 @@ func importBooks(ctx context.Context, a *app.App, args []string) error {
 		verb = "would add (dry run, nothing changed)"
 	}
 	fmt.Printf("%s %d books; %d were already in the library\n", verb, added, skipped)
+	return nil
+}
+
+// importEvents loads a prepared list of events from a JSON file. Times are written with their offset, for example
+// "2026-11-09T12:30:00+08:00", so the server's own time zone never matters.
+func importEvents(ctx context.Context, a *app.App, args []string) error {
+	dry, rest := false, []string{}
+	for _, x := range args {
+		if x == "--dry-run" || x == "-n" {
+			dry = true
+		} else {
+			rest = append(rest, x)
+		}
+	}
+	if len(rest) != 1 {
+		return errors.New("usage: spotlight import-events [--dry-run] EVENTS.json")
+	}
+	raw, err := os.ReadFile(rest[0])
+	if err != nil {
+		return err
+	}
+	var items []struct {
+		Title, Subject, Description, Venue, Host, ImageURL, Competition string
+		StartsAt, EndsAt                                                time.Time
+		Capacity                                                        *int64
+		NoSignup                                                        bool
+	}
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return fmt.Errorf("could not read %s: %w", rest[0], err)
+	}
+	list := make([]app.EventInput, 0, len(items))
+	for _, it := range items {
+		list = append(list, app.EventInput{Title: it.Title, Subject: it.Subject, Description: it.Description, Venue: it.Venue, Host: it.Host, ImageURL: it.ImageURL,
+			Competition: it.Competition, StartsAt: it.StartsAt, EndsAt: it.EndsAt, Capacity: it.Capacity, NoSignup: it.NoSignup})
+	}
+	added, skipped, err := a.ImportEvents(ctx, list, dry)
+	if err != nil {
+		return err
+	}
+	verb := "added"
+	if dry {
+		verb = "would add (dry run, nothing changed)"
+	}
+	fmt.Printf("%s %d events; %d were already there\n", verb, added, skipped)
 	return nil
 }

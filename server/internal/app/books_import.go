@@ -46,3 +46,28 @@ func (a *App) ImportBooks(ctx context.Context, list []BookImport, dry bool) (add
 	}
 	return
 }
+
+// ImportEvents adds the events that are not there yet (matched by title and start time) and reports how many it added and skipped.
+func (a *App) ImportEvents(ctx context.Context, list []EventInput, dry bool) (added, skipped int, err error) {
+	for _, e := range list {
+		if err = e.validate(); err != nil {
+			return added, skipped, err
+		}
+		var n int
+		if err = a.DB.Read.QueryRowContext(ctx, `SELECT COUNT(*) FROM events WHERE title = ? AND starts_at = ?`, e.Title, unix(e.StartsAt)).Scan(&n); err != nil {
+			return
+		}
+		if n > 0 {
+			skipped++
+			continue
+		}
+		added++
+		if dry {
+			continue
+		}
+		if _, err = a.CreateEvent(ctx, e); err != nil {
+			return
+		}
+	}
+	return
+}
